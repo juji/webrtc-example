@@ -105,7 +105,8 @@ export function useWebRtcChat(selfUsername: string, peerUsername: string) {
     fetchIceServers().then((iceServers) => {
       if (cancelled) return;
 
-      const pc = new RTCPeerConnection({ iceServers });
+      const iceTransportPolicy = (process.env.NEXT_PUBLIC_ICE_TRANSPORT_POLICY ?? "all") as RTCIceTransportPolicy;
+      const pc = new RTCPeerConnection({ iceServers, iceTransportPolicy });
       pcRef.current = pc;
 
       function send(message: SignalMessage) {

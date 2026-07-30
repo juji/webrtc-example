@@ -6,6 +6,7 @@
       "name": "webrtc",
       "devDependencies": {
         "playwright": "^1.62.0",
+        "postgres": "^3.4.9",
       },
     },
     "client": {

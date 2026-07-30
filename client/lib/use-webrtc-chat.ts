@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ackMessage, fetchFailoverMessages, sendFailoverFile, sendFailoverMessage, SERVER_URL } from "./api";
-import { EMPTY_MESSAGES, setPendingSentRow, useMessagesStore, type ChatMessage } from "./messages-store";
+import { EMPTY_MESSAGES, useMessagesStore, type ChatMessage } from "./messages-store";
 import { useSignalingStore, type SignalMessage } from "./signaling-store";
 
 // Every text frame on the data channel is one of these. Binary frames are always
@@ -48,17 +48,15 @@ export function useWebRtcChat(selfUsername: string, peerUsername: string) {
   const ackTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Server-dispatch fallback: used when the channel isn't open, and when a P2P
-  // send's ack-timeout fires. Shared by both sendMessage and sendFile.
+  // send's ack-timeout fires. Shared by both sendMessage and sendFile. The row
+  // id isn't tracked client-side — message-acked carries it directly, so the
+  // sender's final DELETE works even after closing and reopening the app.
   function dispatchTextViaServer(clientId: string, text: string) {
-    sendFailoverMessage({ clientId, fromUsername: selfUsername, toUsername: peerUsername, text }).then((row) => {
-      setPendingSentRow(clientId, row.id);
-    });
+    sendFailoverMessage({ clientId, fromUsername: selfUsername, toUsername: peerUsername, text });
   }
 
   function dispatchFileViaServer(clientId: string, file: File) {
-    sendFailoverFile({ clientId, fromUsername: selfUsername, toUsername: peerUsername, file }).then((row) => {
-      setPendingSentRow(clientId, row.id);
-    });
+    sendFailoverFile({ clientId, fromUsername: selfUsername, toUsername: peerUsername, file });
   }
 
   function armAckTimeout(clientId: string, onTimeout: () => void) {

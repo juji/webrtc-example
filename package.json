@@ -7,9 +7,10 @@
   ],
   "scripts": {
     "dev": "docker compose up -d && trap 'docker compose down' EXIT && bun run --filter '*' dev",
-    "test:e2e": "bun run e2e/chat.test.mjs"
+    "test:e2e": "bun run e2e/chat.test.mjs && bun run e2e/failover.test.mjs"
   },
   "devDependencies": {
-    "playwright": "^1.62.0"
+    "playwright": "^1.62.0",
+    "postgres": "^3.4.9"
   }
 }

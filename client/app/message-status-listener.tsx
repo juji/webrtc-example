@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { ackMessage, deleteMessage } from "@/lib/api";
-import { useMessagesStore, takePendingSentRow } from "@/lib/messages-store";
+import { useMessagesStore } from "@/lib/messages-store";
 import { useSignalingStore } from "@/lib/signaling-store";
 
 // Root-level (not per-chat-page) subscriber for message-status pushes, so a
@@ -28,9 +28,8 @@ export function MessageStatusListener() {
         });
         ackMessage(row.id);
       } else {
-        const rowId = takePendingSentRow(message.clientId);
         updateStatus(message.peerUsername, message.clientId, "sent");
-        if (rowId !== undefined) deleteMessage(rowId);
+        deleteMessage(message.id);
       }
     });
   }, [addMessage, updateStatus]);

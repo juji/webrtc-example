@@ -1,0 +1,59 @@
+name: e2e
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://webrtc:webrtc@localhost:5432/webrtc
+      RUSTFS_ENDPOINT: http://localhost:9000
+      RUSTFS_ACCESS_KEY: webrtc
+      RUSTFS_SECRET_KEY: webrtcsecret
+      NEXT_PUBLIC_SERVER_URL: http://localhost:4000
+      # Optional: only needed for NAT traversal, not for same-machine CI browsers.
+      METERED_APP_NAME: ${{ secrets.METERED_APP_NAME }}
+      METERED_API_KEY: ${{ secrets.METERED_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: Start Postgres + RustFS
+        run: docker compose up -d
+
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 30); do
+            docker compose exec -T postgres pg_isready -U webrtc && break
+            sleep 1
+          done
+
+      - name: Push DB schema
+        run: bun run db:push
+        working-directory: server
+
+      - name: Start dev servers
+        run: bun run --filter '*' dev &
+
+      - name: Wait for servers
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:4000/users?q=&exclude= > /dev/null && curl -sf http://localhost:3000 > /dev/null && break
+            sleep 1
+          done
+
+      - name: Run e2e tests
+        run: bun run test:e2e
+
+      - name: Docker logs on failure
+        if: failure()
+        run: docker compose logs

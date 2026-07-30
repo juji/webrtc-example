@@ -11,7 +11,7 @@ export type SignalMessage =
 // but carried over the same one WebSocket — see message-status-listener.tsx.
 export type MessageStatusPush =
   | { type: "new-message"; message: MessageRow; fromUsername: string }
-  | { type: "message-acked"; clientId: string; peerUsername: string };
+  | { type: "message-acked"; id: number; clientId: string; peerUsername: string };
 
 type SignalingListener = (message: SignalMessage | MessageStatusPush) => void;
 

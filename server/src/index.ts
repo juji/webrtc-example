@@ -43,7 +43,11 @@ async function ensureAttachmentsBucket() {
   )
 }
 
-await ensureAttachmentsBucket()
+try {
+  await ensureAttachmentsBucket()
+} catch (err) {
+  console.error('RustFS unreachable at startup, attachment endpoints will fail until it recovers:', err)
+}
 
 export default {
   port: 4000,

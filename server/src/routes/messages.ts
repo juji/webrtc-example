@@ -93,7 +93,12 @@ messagesRoute.post('/:id/ack', async (c) => {
   ])
 
   if (fromUser && toUser) {
-    notifyUser(fromUser.username, { type: 'message-acked', clientId: row.clientId, peerUsername: toUser.username })
+    notifyUser(fromUser.username, {
+      type: 'message-acked',
+      id: row.id,
+      clientId: row.clientId,
+      peerUsername: toUser.username,
+    })
   }
 
   return c.json({ message: row })

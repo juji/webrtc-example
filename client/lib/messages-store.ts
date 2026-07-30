@@ -32,20 +32,6 @@ type MessagesState = {
 // `byPeer[peer] ?? EMPTY_MESSAGES` don't return a new array every render.
 export const EMPTY_MESSAGES: ChatMessage[] = [];
 
-// clientId -> server row id, for failover messages this device sent. Not reactive
-// state (nothing renders off it), same pattern as signaling-store.ts's listeners/sendQueue.
-const pendingSentRows = new Map<string, number>();
-
-export function setPendingSentRow(clientId: string, rowId: number) {
-  pendingSentRows.set(clientId, rowId);
-}
-
-export function takePendingSentRow(clientId: string): number | undefined {
-  const rowId = pendingSentRows.get(clientId);
-  pendingSentRows.delete(clientId);
-  return rowId;
-}
-
 export const useMessagesStore = create<MessagesState>()((set) => ({
   byPeer: {},
 

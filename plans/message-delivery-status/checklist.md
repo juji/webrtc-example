@@ -35,45 +35,45 @@ detail: [phase-0b-signaling-store.md](phase-0b-signaling-store.md)
 ## Phase 1 — Server: messages table
 
 detail: [phase-1-schema.md](phase-1-schema.md)
-- [ ] **Add `messages` table via Drizzle**, including `recipientAckedAt` (nullable) — durable failover store, not the primary path
+- [x] **Add `messages` table via Drizzle**, including `recipientAckedAt` (nullable) — durable failover store, not the primary path
 
 ## Phase 2 — Server: failover API + delivery push
 
 detail: [phase-2-api.md](phase-2-api.md)
-- [ ] **`POST /messages`** — store a text message as failover when P2P couldn't deliver it live
-- [ ] **`GET /messages?peer=&self=`** — recipient's one-shot catch-up fetch on chat-page mount: rows still unacked by them (`recipientAckedAt IS NULL`)
-- [ ] **`POST /messages/:id/ack`** — recipient's ack: sets `recipientAckedAt`, does NOT delete; triggers a push attempt to notify the sender
-- [ ] **`DELETE /messages/:id`** — sender's final ack, only after they've learned the recipient has it; this is the only deletion trigger
-- [ ] **Push both directions over the existing signaling WebSocket, with queue-and-flush for whoever's offline**: `new-message` to the recipient on create, `message-acked` to the sender once the recipient acks. `notifyUser` reuses `signaling.ts`'s existing `pending` queue/`onOpen` flush (already used for WebRTC offers) so a target who's offline right now still gets it the instant they reconnect — no polling anywhere in the app
+- [x] **`POST /messages`** — store a text message as failover when P2P couldn't deliver it live
+- [x] **`GET /messages?peer=&self=`** — recipient's one-shot catch-up fetch on chat-page mount: rows still unacked by them (`recipientAckedAt IS NULL`)
+- [x] **`POST /messages/:id/ack`** — recipient's ack: sets `recipientAckedAt`, does NOT delete; triggers a push attempt to notify the sender
+- [x] **`DELETE /messages/:id`** — sender's final ack, only after they've learned the recipient has it; this is the only deletion trigger
+- [x] **Push both directions over the existing signaling WebSocket, with queue-and-flush for whoever's offline**: `new-message` to the recipient on create, `message-acked` to the sender once the recipient acks. `notifyUser` reuses `signaling.ts`'s existing `pending` queue/`onOpen` flush (already used for WebRTC offers) so a target who's offline right now still gets it the instant they reconnect — no polling anywhere in the app
 
 ## Phase 3 — Server + client: direct-to-RustFS attachment upload
 
 detail: [phase-3-attachment-upload.md](phase-3-attachment-upload.md)
-- [ ] **`ensureAttachmentsBucket()` in `server/src/index.ts`** — creates the `attachments` bucket (idempotent) and applies a public-read policy on server startup, so `fileUrl` is fetchable without a manual console step
-- [ ] **`POST /messages/attachment/presign`** — server generates a presigned PUT URL + a `messages` row (file metadata only, no bytes) for the failover attachment case
-- [ ] **Client PUTs the file directly to the presigned URL** — bytes never touch the Hono server
-- [ ] **Client confirms the upload** so the recipient's `GET`/WS-push picks up a row whose file actually exists in RustFS
+- [x] **`ensureAttachmentsBucket()` in `server/src/index.ts`** — creates the `attachments` bucket (idempotent) and applies a public-read policy on server startup, so `fileUrl` is fetchable without a manual console step
+- [x] **`POST /messages/attachment/presign`** — server generates a presigned PUT URL + a `messages` row (file metadata only, no bytes) for the failover attachment case
+- [x] **Client PUTs the file directly to the presigned URL** — bytes never touch the Hono server
+- [x] **Client confirms the upload** so the recipient's `GET`/WS-push picks up a row whose file actually exists in RustFS
 
 ## Phase 4 — Client: status-aware send pipeline
 
 detail: [phase-4-send.md](phase-4-send.md)
-- [ ] **New `client/lib/messages-store.ts`** — `ChatMessage[]` + pending-sent-row tracking move out of `useWebRtcChat`'s local `useState`/`useRef` into a Zustand store keyed by peer username, so Phase 5's root-level listener can update a conversation's messages even when that conversation's chat page isn't mounted (same reasoning as Phase 0b moving the WebSocket itself)
-- [ ] **Rewrite `sendMessage`/`sendFile`** to try the P2P data channel first, fall back to the server (Phase 2/3) if not connected or the send fails
-- [ ] **Ack-timeout fallback**: `dc.readyState === "open"` doesn't guarantee the recipient actually received the send — if no P2P `ack` (Phase 5) arrives within `ACK_TIMEOUT_MS`, fall back to the same server path used when the channel wasn't open, so a stale-but-open channel can't strand a message at `in-transit` forever with no server row
-- [ ] **Track per-message status** (`sending` → `in-transit` → `sent` → `read`) keyed by a client-generated id, independent of which path delivered it
+- [x] **New `client/lib/messages-store.ts`** — `ChatMessage[]` + pending-sent-row tracking move out of `useWebRtcChat`'s local `useState`/`useRef` into a Zustand store keyed by peer username, so Phase 5's root-level listener can update a conversation's messages even when that conversation's chat page isn't mounted (same reasoning as Phase 0b moving the WebSocket itself)
+- [x] **Rewrite `sendMessage`/`sendFile`** to try the P2P data channel first, fall back to the server (Phase 2/3) if not connected or the send fails
+- [x] **Ack-timeout fallback**: `dc.readyState === "open"` doesn't guarantee the recipient actually received the send — if no P2P `ack` (Phase 5) arrives within `ACK_TIMEOUT_MS`, fall back to the same server path used when the channel wasn't open, so a stale-but-open channel can't strand a message at `in-transit` forever with no server row
+- [x] **Track per-message status** (`sending` → `in-transit` → `sent` → `read`) keyed by a client-generated id, independent of which path delivered it
 
 ## Phase 5 — Client: receive, ack, and read tracking
 
 detail: [phase-5-receive.md](phase-5-receive.md)
-- [ ] **New `client/app/message-status-listener.tsx`**, mounted in `layout.tsx` alongside `SignalingConnection` — a root-level (not per-chat-page) subscriber that handles `new-message`/`message-acked` against `messages-store.ts`, regardless of which conversation (if any) is currently open
-- [ ] **On P2P receipt, send an ack back immediately** over the data channel so the sender flips to `sent` — fully resolved in one round trip, no server involved
-- [ ] **On receiving that ack, clear the sender's pending ack-timeout** (Phase 4) — otherwise a real ack that arrives just under the timeout still lets the delayed server-fallback fire afterward, creating a redundant row
-- [ ] **On receiving a failover message** (WS push or `GET` on chat open), `POST /messages/:id/ack` — recipient's ack, does NOT delete the row
-- [ ] **On receiving `message-acked`** (live push, or flushed from the queue the instant the sender's WebSocket reconnects — never a poll), flip local status to `sent` and `DELETE /messages/:id` — the sender's ack, which finally deletes the row. Works identically whether the sender was live when the recipient acked, or was offline and only reconnects later — the server holds the notice until then.
-- [ ] **On opening/viewing a thread, mark unread messages `read` locally** and echo a `read` data-channel message to the sender if still connected (best-effort, no server involvement)
+- [x] **New `client/app/message-status-listener.tsx`**, mounted in `layout.tsx` alongside `SignalingConnection` — a root-level (not per-chat-page) subscriber that handles `new-message`/`message-acked` against `messages-store.ts`, regardless of which conversation (if any) is currently open
+- [x] **On P2P receipt, send an ack back immediately** over the data channel so the sender flips to `sent` — fully resolved in one round trip, no server involved
+- [x] **On receiving that ack, clear the sender's pending ack-timeout** (Phase 4) — otherwise a real ack that arrives just under the timeout still lets the delayed server-fallback fire afterward, creating a redundant row
+- [x] **On receiving a failover message** (WS push or `GET` on chat open), `POST /messages/:id/ack` — recipient's ack, does NOT delete the row
+- [x] **On receiving `message-acked`** (live push, or flushed from the queue the instant the sender's WebSocket reconnects — never a poll), flip local status to `sent` and `DELETE /messages/:id` — the sender's ack, which finally deletes the row. Works identically whether the sender was live when the recipient acked, or was offline and only reconnects later — the server holds the notice until then.
+- [x] **On opening/viewing a thread, mark unread messages `read` locally** and echo a `read` data-channel message to the sender if still connected (best-effort, no server involvement)
 
 ## Phase 6 — Client: status UI + attachment parity
 
 detail: [phase-6-ui.md](phase-6-ui.md)
-- [ ] **Render per-message status** (sending/in-transit/sent/read) on both text and file message bubbles
-- [ ] **Wire `sendFile` through the same status pipeline** as text messages
+- [x] **Render per-message status** (sending/in-transit/sent/read) on both text and file message bubbles
+- [x] **Wire `sendFile` through the same status pipeline** as text messages

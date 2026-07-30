@@ -12,6 +12,21 @@ const pending = new Map<string, string[]>()
 
 export const signaling = new Hono()
 
+// Sends now if the target is connected, otherwise queues for the same onOpen flush
+// used for offers sent to a not-yet-connected peer.
+export function notifyUser(username: string, payload: unknown) {
+  const target = peers.get(username)
+  const message = JSON.stringify(payload)
+
+  if (target && target.readyState === 1 /* OPEN */) {
+    target.send(message)
+  } else {
+    const queue = pending.get(username) ?? []
+    queue.push(message)
+    pending.set(username, queue)
+  }
+}
+
 signaling.get(
   '/',
   upgradeWebSocket((c) => {

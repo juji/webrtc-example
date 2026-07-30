@@ -1,12 +1,19 @@
 import { create } from "zustand";
 import { SIGNALING_URL } from "./api";
+import type { MessageRow } from "./messages-store";
 
 export type SignalMessage =
   | { type: "offer"; sdp: RTCSessionDescriptionInit; to: string; from?: string }
   | { type: "answer"; sdp: RTCSessionDescriptionInit; to: string; from?: string }
   | { type: "ice-candidate"; candidate: RTCIceCandidateInit; to: string; from?: string };
 
-type SignalingListener = (message: SignalMessage) => void;
+// Delivery-status pushes (Phase 2's notifyUser), distinct from WebRTC signaling above
+// but carried over the same one WebSocket — see message-status-listener.tsx.
+export type MessageStatusPush =
+  | { type: "new-message"; message: MessageRow; fromUsername: string }
+  | { type: "message-acked"; clientId: string; peerUsername: string };
+
+type SignalingListener = (message: SignalMessage | MessageStatusPush) => void;
 
 type SignalingState = {
   ws: WebSocket | null;
@@ -24,7 +31,7 @@ const sendQueue: string[] = [];
 // fetch resolves), so an offer/candidate can arrive before any listener exists yet.
 // Buffer the last few incoming messages and replay them to a listener the instant it
 // subscribes, so a message that arrived "too early" isn't silently dropped.
-const recentMessages: SignalMessage[] = [];
+const recentMessages: (SignalMessage | MessageStatusPush)[] = [];
 const RECENT_MESSAGES_LIMIT = 20;
 
 export const useSignalingStore = create<SignalingState>()((set, get) => ({
@@ -42,7 +49,7 @@ export const useSignalingStore = create<SignalingState>()((set, get) => ({
     };
 
     ws.onmessage = (event) => {
-      const message: SignalMessage = JSON.parse(event.data);
+      const message: SignalMessage | MessageStatusPush = JSON.parse(event.data);
       recentMessages.push(message);
       if (recentMessages.length > RECENT_MESSAGES_LIMIT) recentMessages.shift();
       for (const listener of listeners) listener(message);

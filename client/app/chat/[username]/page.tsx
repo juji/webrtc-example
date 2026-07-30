@@ -42,9 +42,9 @@ function Chat({ selfUsername, peerUsername }: { selfUsername: string; peerUserna
         </span>
       </div>
       <ul className="flex flex-1 flex-col gap-2 overflow-y-auto">
-        {messages.map((m, i) => (
+        {messages.map((m) => (
           <li
-            key={i}
+            key={m.clientId}
             className={`w-fit max-w-[80%] rounded px-3 py-1.5 ${
               m.fromSelf
                 ? "self-end bg-foreground text-background"
@@ -63,15 +63,15 @@ function Chat({ selfUsername, peerUsername }: { selfUsername: string; peerUserna
             ) : (
               m.text
             )}
+            {m.fromSelf && <span className="ml-2 text-xs opacity-60">{m.status}</span>}
           </li>
         ))}
       </ul>
       <form onSubmit={handleSubmit} className="flex gap-2">
-        <input ref={fileInputRef} type="file" onChange={handleFileChange} disabled={!connected} className="hidden" />
+        <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={!connected}
           aria-label="Attach file"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/10 text-black disabled:opacity-50 dark:border-white/10 dark:text-zinc-50"
         >
@@ -84,12 +84,11 @@ function Chat({ selfUsername, peerUsername }: { selfUsername: string; peerUserna
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Message"
-          disabled={!connected}
           className="flex-1 rounded border border-black/10 bg-transparent px-3 py-2 text-black outline-none focus:border-black/40 disabled:opacity-50 dark:border-white/10 dark:text-zinc-50 dark:focus:border-white/40"
         />
         <button
           type="submit"
-          disabled={!connected || !draft.trim()}
+          disabled={!draft.trim()}
           className="rounded bg-foreground px-4 py-2 font-medium text-background disabled:opacity-50"
         >
           Send

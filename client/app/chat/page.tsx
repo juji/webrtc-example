@@ -1,13 +1,24 @@
 "use client";
 
 import { LogOut, MessageCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Popup } from "@/components/popup";
+import { useSessionStore } from "@/lib/session-store";
 
 // Fake data, no backend calls yet — wire up a real /messages/conversations endpoint.
 const FAKE_CONVERSATIONS: { username: string; lastMessage: string; time: string; unread: number }[] = [];
 
 export default function MockupPage() {
+  const router = useRouter();
+  const logout = useSessionStore((s) => s.logout);
   const [selected, setSelected] = useState<string | null>(null);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+
+  function handleLogout() {
+    logout();
+    router.push("/");
+  }
 
   return (
     <div className="flex w-full flex-1 min-h-0">
@@ -56,6 +67,7 @@ export default function MockupPage() {
 
         <div className="sticky bottom-0 mt-auto flex items-center justify-end border-t border-black/10 bg-background px-8 py-4 dark:border-white/10">
           <button
+            onClick={() => setConfirmingLogout(true)}
             aria-label="Log out"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
           >
@@ -71,6 +83,16 @@ export default function MockupPage() {
           <p className="text-sm text-zinc-500">Select a conversation</p>
         )}
       </div>
+
+      <Popup
+        open={confirmingLogout}
+        onClose={() => setConfirmingLogout(false)}
+        title="Log out"
+        onConfirm={handleLogout}
+        confirmLabel="Log out"
+      >
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Are you sure you want to log out?</p>
+      </Popup>
     </div>
   );
 }

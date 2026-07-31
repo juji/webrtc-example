@@ -143,7 +143,7 @@ export async function acceptContactRequest(requestId: string, username: string):
 }
 
 export async function fetchContactRequests(username: string): Promise<ContactRequestNotification[]> {
-  const res = await fetch(`${SERVER_URL}/contacts/requests?username=${encodeURIComponent(username)}`);
+  const res = await fetch(`${SERVER_URL}/notifications?username=${encodeURIComponent(username)}`);
   const { notifications } = await res.json();
   return notifications;
 }

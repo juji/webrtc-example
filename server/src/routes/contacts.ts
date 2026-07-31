@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '../db'
 import { notifications, users } from '../db/schema'
 import { notifyUserByPush } from '../push'
@@ -79,28 +79,10 @@ contactsRoute.post('/request', async (c) => {
   await notifyUserByPush(toUser.id, {
     title: 'Primssg',
     body: `${fromUser.username} wants to add you as a contact`,
-    url: '/chat?open=requests',
+    url: `/chat?open=notifications&id=${incoming.id}`,
   })
 
   return c.json({ notification: incoming })
-})
-
-// Full notification feed for a user — both directions, any status. What the
-// Bell popup renders.
-contactsRoute.get('/requests', async (c) => {
-  const username = c.req.query('username')
-  if (!username) return c.json({ error: 'username is required' }, 400)
-
-  const [user] = await db.select().from(users).where(eq(users.username, username))
-  if (!user) return c.json({ error: 'unknown username' }, 404)
-
-  const rows = await db
-    .select()
-    .from(notifications)
-    .where(and(eq(notifications.userId, user.id), eq(notifications.type, 'contact_request')))
-    .orderBy(desc(notifications.createdAt))
-
-  return c.json({ notifications: rows })
 })
 
 // Accepting updates both sides of the pair: the recipient's own row (so a
@@ -141,7 +123,7 @@ contactsRoute.post('/requests/:id/accept', async (c) => {
   await notifyUserByPush(fromUser.id, {
     title: 'Primssg',
     body: `${user.username} accepted your contact request`,
-    url: '/chat?open=requests',
+    url: `/chat?open=notifications&id=${data.pairId}`,
     data: {
       type: 'contact-accepted',
       contact: { id: user.id, username: user.username },

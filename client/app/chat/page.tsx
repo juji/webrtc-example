@@ -16,14 +16,14 @@ const FAKE_CONVERSATIONS: { username: string; lastMessage: string; time: string;
 
 // useSearchParams() opts the page out of static rendering unless isolated
 // behind its own Suspense boundary — this component's only job is reading
-// the ?open=requests query param a notification click deep-links with.
-function OpenRequestsFromQuery({ onOpenRequests }: { onOpenRequests: () => void }) {
+// the ?open=notifications&id=... query params a notification click deep-links with.
+function OpenRequestsFromQuery({ onOpenRequests }: { onOpenRequests: (highlightId: string | null) => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (searchParams.get("open") === "requests") {
-      onOpenRequests();
+    if (searchParams.get("open") === "notifications") {
+      onOpenRequests(searchParams.get("id"));
       router.replace("/chat");
     }
   }, [searchParams, router, onOpenRequests]);
@@ -39,6 +39,7 @@ export default function MockupPage() {
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
+  const [highlightNotificationId, setHighlightNotificationId] = useState<string | null>(null);
   const [needsNotificationPrompt, setNeedsNotificationPrompt] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
 
@@ -72,14 +73,22 @@ export default function MockupPage() {
   return (
     <div className="flex w-full flex-1 min-h-0">
       <Suspense fallback={null}>
-        <OpenRequestsFromQuery onOpenRequests={() => setShowRequests(true)} />
+        <OpenRequestsFromQuery
+          onOpenRequests={(highlightId) => {
+            setHighlightNotificationId(highlightId);
+            setShowRequests(true);
+          }}
+        />
       </Suspense>
       <div className="flex w-full flex-col overflow-y-auto md:w-sm md:shrink-0 md:border-r md:border-black/10 md:dark:border-white/10">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-background/30 px-8 py-6 shadow-xl backdrop-blur-lg dark:border-white/10">
           <h1 className="text-xl font-semibold text-black dark:text-zinc-50">Chats</h1>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowRequests(true)}
+              onClick={() => {
+                setHighlightNotificationId(null);
+                setShowRequests(true);
+              }}
               aria-label="Notifications"
               className="relative flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
             >
@@ -184,7 +193,12 @@ export default function MockupPage() {
       </Popup>
 
       <QrCodePopup open={showQr} onClose={() => setShowQr(false)} user={user} />
-      <RequestsPopup open={showRequests} onClose={() => setShowRequests(false)} user={user} />
+      <RequestsPopup
+        open={showRequests}
+        onClose={() => setShowRequests(false)}
+        user={user}
+        highlightId={highlightNotificationId}
+      />
     </div>
   );
 }

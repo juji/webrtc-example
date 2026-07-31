@@ -2,7 +2,7 @@
 
 ## Files
 
-`client/lib/contacts.ts` (new; later gained `syncAcceptedContact`), `server/src/routes/contacts.ts` (added `POST /requests/:id/accept`, `POST /request` now requires `keyFingerprint`; later rewritten around `notifications`), `server/src/db/schema.ts` (`contact_requests` gained `fromScannedFingerprint`; later replaced by `notifications`), `server/src/push.ts` (`PushPayload` gained optional `data`), `client/lib/api.ts` (added `acceptContactRequest`/`AcceptedContact`, `sendContactRequest` now takes `keyFingerprint`; later `ContactRequest` replaced by `ContactRequestNotification`), `client/components/qr-code-popup.tsx` (passes `scanned.keyFingerprint` through to `sendContactRequest`), `client/components/requests-popup.tsx` (Accept button wired; later rewritten as a Received/Sent notification list), `client/public/sw.js` (`push` handler broadcasts structured `data` to open tabs), `client/app/service-worker-registration.tsx` (re-verifies and persists on a `contact-accepted` push; later delegates to `syncAcceptedContact`), `client/app/chat/page.tsx` (notification count badge — preamble, not the accept flow itself; later badge counts only pending-incoming).
+`client/lib/contacts.ts` (new; later gained `syncAcceptedContact`), `server/src/routes/contacts.ts` (added `POST /requests/:id/accept`, `POST /request` now requires `keyFingerprint`; later rewritten around `notifications`; accept push's `url` fixed to deep-link), `server/src/db/schema.ts` (`contact_requests` gained `fromScannedFingerprint`; later replaced by `notifications`), `server/src/push.ts` (`PushPayload` gained optional `data`), `client/lib/api.ts` (added `acceptContactRequest`/`AcceptedContact`, `sendContactRequest` now takes `keyFingerprint`; later `ContactRequest` replaced by `ContactRequestNotification`), `client/components/qr-code-popup.tsx` (passes `scanned.keyFingerprint` through to `sendContactRequest`), `client/components/requests-popup.tsx` (Accept button wired; later rewritten as a flat notification list, briefly tried as Received/Sent tabs and reverted), `client/public/sw.js` (`push` handler broadcasts structured `data` to open tabs), `client/app/service-worker-registration.tsx` (re-verifies and persists on a `contact-accepted` push; later delegates to `syncAcceptedContact`), `client/app/chat/page.tsx` (notification count badge — preamble, not the accept flow itself; later badge counts only pending-incoming; `?open=requests` renamed `?open=notifications`).
 
 ## The core design decision: contacts live only in IndexedDB, never on the server
 
@@ -205,10 +205,29 @@ await db.update(notifications).set({ status: 'accepted' }).where(eq(notification
 
 This is the actual fix for gap 2: BB's own row now durably reflects `'accepted'` on the server regardless of whether any push was ever delivered. Push becomes an optimization (fast, live update) rather than the only path to the truth.
 
-### Client: `RequestsPopup` becomes a real Received/Sent notification list, and is now a sync path in its own right
+### Client: `RequestsPopup` becomes a flat notification list, and is now a sync path in its own right
+
+A tabbed Received/Sent layout was tried first and rejected on direct feedback: the popup's title is "Notifications," and splitting it into two tabs re-created "contact requests" (with a direction filter) under a name that promised something more general. The actual fix: **one flat list**, where each row is self-describing — a title (the other person), a description sentence that already encodes direction and status, and a trailing status/action:
 
 ```tsx
 // client/components/requests-popup.tsx
+function description(n: ContactRequestNotification): string {
+  if (n.data.direction === "incoming") {
+    return n.status === "accepted"
+      ? `You added ${n.data.otherUsername} as a contact.`
+      : `${n.data.otherUsername} wants to add you as a contact.`;
+  }
+  return n.status === "accepted"
+    ? `${n.data.otherUsername} accepted your contact request.`
+    : `Contact request sent to ${n.data.otherUsername}.`;
+}
+```
+
+Each row shows an Accept button only when `direction === "incoming" && status === "pending"` (the one actionable case); every other row just shows its status text (Pending/Accepted). This shape also scales to future notification `type`s without needing a new tab per type — a flat list keyed by a per-row `description()` function stays correct as more types are added, where a tab-per-category layout wouldn't.
+
+The sync-on-open effect is unchanged by the tab removal — it's not a tab-scoped concern, it runs over the whole fetched list regardless of how it's rendered:
+
+```tsx
 useEffect(() => {
   if (!open) return;
   fetchContactRequests(user.username).then((rows) => {
@@ -222,7 +241,7 @@ useEffect(() => {
 }, [open, user]);
 ```
 
-Every time BB opens the popup (renamed "Notifications" — it's no longer only about incoming requests), any `Sent` row already marked `accepted` gets re-synced. This directly closes gap 1 and 2 together: opening the popup *is* the visible confirmation ("Sent → testaa: Accepted" now renders, where before nothing did), and it's also the durable delivery path that doesn't depend on push having fired while a tab was open.
+Every time BB opens the popup, any outgoing (`Sent`) row already marked `accepted` gets re-synced. This directly closes gap 1 and 2 together: opening the popup *is* the visible confirmation ("Contact request sent to testaa" flips to "testaa accepted your contact request" once fetched), and it's also the durable delivery path that doesn't depend on push having fired while a tab was open.
 
 `syncAcceptedContact` was extracted into `client/lib/contacts.ts` — it's the exact fingerprint-re-verify-then-`addContact` logic `service-worker-registration.tsx`'s `handleContactAccepted` already had, now needed in a second call site (the popup), so it was pulled out rather than duplicated a second time:
 
@@ -242,7 +261,7 @@ export async function syncAcceptedContact(ownerUsername: string, contact: { id: 
 
 `service-worker-registration.tsx`'s live-push handler now just calls this same function instead of re-implementing the check — the live path and the popup-sync path share one verification implementation, not two that could drift.
 
-Safe to call redundantly (every popup-open re-syncs every already-accepted `Sent` row, not just newly-accepted ones) because `addContact` is a keyed `put`/upsert on `[ownerUsername, id]` — re-writing an already-known contact is a no-op overwrite, not a duplicate or an error. This does mean a redundant `GET /users/:id` + fingerprint recompute per accepted row per popup-open; acceptable at this scale, flagged below rather than optimized away.
+Safe to call redundantly (every popup-open re-syncs every already-accepted outgoing row, not just newly-accepted ones) because `addContact` is a keyed `put`/upsert on `[ownerUsername, id]` — re-writing an already-known contact is a no-op overwrite, not a duplicate or an error. This does mean a redundant `GET /users/:id` + fingerprint recompute per accepted row per popup-open; acceptable at this scale, flagged below rather than optimized away.
 
 The badge-count logic on `/chat` was narrowed to match the now-broader feed: `fetchContactRequests` returns every notification (both directions, any status), so the badge filters to `direction === "incoming" && status === "pending"` specifically — otherwise accepted/sent rows would inflate a count that's supposed to mean "things needing your action."
 
@@ -252,18 +271,34 @@ The old `contact_requests` table was dropped directly (`DROP TABLE contact_reque
 
 ## Bug found after the redesign: BB's accept-notification push didn't deep-link to the popup
 
-Clicking AA's own request-sent notification worked (`POST /contacts/request`'s push already used `url: '/chat?open=requests'`), but clicking BB's accept notification just navigated to a bare `/chat` — the popup never opened. Root cause: the accept push (`POST /contacts/requests/:id/accept` in `server/src/routes/contacts.ts`) still used `url: '/chat'`, left over from before the redesign gave BB a real notification worth deep-linking to. One-line fix:
+Clicking AA's own request-sent notification worked (`POST /contacts/request`'s push already used a `?open=...` deep link), but clicking BB's accept notification just navigated to a bare `/chat` — the popup never opened. Root cause: the accept push (`POST /contacts/requests/:id/accept` in `server/src/routes/contacts.ts`) still used `url: '/chat'`, left over from before the redesign gave BB a real notification worth deep-linking to. One-line fix (shown here with the query param's later-renamed value — see next section):
 
 ```ts
 await notifyUserByPush(fromUser.id, {
   title: 'Primssg',
   body: `${user.username} accepted your contact request`,
-  url: '/chat?open=requests', // was '/chat'
+  url: '/chat?open=notifications', // was '/chat'
   data: { /* ... */ },
 })
 ```
 
 Both contact-request push sites now consistently deep-link into the Notifications popup, matching the pattern already established for the initial request push.
+
+## `?open=requests` renamed to `?open=notifications`
+
+The query param that deep-links a push into the popup was still named after the old "contact requests" framing even after the popup itself became a generic "Notifications" list. Renamed for consistency, three call sites:
+
+```ts
+// client/app/chat/page.tsx
+if (searchParams.get("open") === "notifications") { onOpenRequests(); router.replace("/chat"); }
+```
+
+```ts
+// server/src/routes/contacts.ts — both POST /request and POST /requests/:id/accept
+url: '/chat?open=notifications',
+```
+
+Purely a naming fix — no behavior change, no schema/data involved. `OpenRequestsFromQuery`'s own function/component name was left as-is (still reads as "opens the requests popup," which is accurate — it's the popup component's name, `RequestsPopup`, that didn't get renamed either, only its rendered title).
 
 ## Explicitly not done in this phase
 
@@ -271,7 +306,7 @@ Both contact-request push sites now consistently deep-link into the Notification
 - **No success confirmation beyond the row's status text changing** — no toast/checkmark, just "Pending" flipping to "Accepted" the next time the notification list is fetched.
 - **No handling of a contact being accepted while `requestCount`'s badge is mid-transition** — a minor UI-freshness gap, not a data-correctness one (the badge just briefly under/over-counts by one until the popup closes and refetches).
 - **No live-updating notification list** — like Phase 5, still fetched once per popup-open, no WebSocket/live push of new rows into an already-open popup. Redesign fixes staleness *across* opens (nothing is lost once seen), not live updates *within* one.
-- **Redundant re-verification work on every popup-open** — every accepted `Sent` row triggers a fresh `GET /users/:id` + fingerprint recompute each time the popup opens, not just the first time it's newly accepted. Harmless (upsert, no duplicate writes) but wasteful at any real scale; no attempt made to track "already synced" client-side.
+- **Redundant re-verification work on every popup-open** — every accepted outgoing row triggers a fresh `GET /users/:id` + fingerprint recompute each time the popup opens, not just the first time it's newly accepted. Harmless (upsert, no duplicate writes) but wasteful at any real scale; no attempt made to track "already synced" client-side.
 - **If BB's `GET /users/:id` re-fetch fails or the fingerprint mismatches, the failure is silent** (`console.error` only) — BB never finds out their contact wasn't saved, beyond an easily-missed console message. This is now recoverable (next popup-open retries), but still gives no visible feedback if it keeps failing.
 - **No decline/reject action** — still Phase 7, unchanged by this redesign.
 
@@ -285,6 +320,7 @@ Both contact-request push sites now consistently deep-link into the Notification
 6. Re-fetch both users' `GET /contacts/requests` — confirm **both** paired rows flipped to `status: 'accepted'`, not just the recipient's.
 7. Repeat the same accept call — confirm 409 `"request is not pending"`, not a silent success or duplicate push.
 8. As the original requester (not the recipient), attempt to accept the same request id — confirm 404 `"request not found"`.
-9. In the browser, with both AA and BB logged in (two profiles/browsers): AA accepts BB's request via `RequestsPopup` — confirm AA's IndexedDB (`webrtc-contacts`) gets a row for BB immediately, and BB's IndexedDB gets a row for AA either via the live push (`handleContactAccepted`) *or*, simulating a missed push (BB's tab closed at accept time, or notification dismissed unclicked), by BB simply opening the Notifications popup afterward — confirm the "Sent" row shows "Accepted" and `webrtc-contacts` now has the entry, proving the sync doesn't depend on the push having been delivered.
+9. In the browser, with both AA and BB logged in (two profiles/browsers): AA accepts BB's request via `RequestsPopup` — confirm AA's IndexedDB (`webrtc-contacts`) gets a row for BB immediately, and BB's IndexedDB gets a row for AA either via the live push (`handleContactAccepted`) *or*, simulating a missed push (BB's tab closed at accept time, or notification dismissed unclicked), by BB simply opening the Notifications popup afterward — confirm BB's outgoing row now reads "accepted your contact request" and `webrtc-contacts` now has the entry, proving the sync doesn't depend on the push having been delivered.
+9b. Click both the request-sent push (AA's side) and the accept push (BB's side) — confirm both deep-link via `?open=notifications` and actually open the popup, not just navigate to a bare `/chat`.
 10. Tamper with the echoed fingerprint (e.g. temporarily change what the server sends) and confirm BB's client logs the verification failure and does *not* write a contact — proves the re-verification is actually enforced, not just present in code.
 11. `bunx tsc --noEmit` clean in both `client/` and `server/` (run from within each directory).

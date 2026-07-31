@@ -4,6 +4,7 @@ import { cors } from 'hono/cors'
 import { auth } from './routes/auth'
 import { contactsRoute } from './routes/contacts'
 import { messagesRoute } from './routes/messages'
+import { notificationsRoute } from './routes/notifications'
 import { pushRoute } from './routes/push'
 import { turn } from './routes/turn'
 import { usersRoute } from './routes/users'
@@ -21,6 +22,7 @@ app.route('/signaling', signaling)
 app.route('/messages', messagesRoute)
 app.route('/push', pushRoute)
 app.route('/contacts', contactsRoute)
+app.route('/notifications', notificationsRoute)
 
 async function ensureAttachmentsBucket() {
   try {

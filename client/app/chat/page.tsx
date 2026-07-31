@@ -49,10 +49,10 @@ export default function MockupPage() {
 
   async function refreshConversations() {
     if (!user) return;
-    const convos = await listConversations(user.username);
+    const convos = await listConversations(user.id);
     const joined = await Promise.all(
       convos.map(async (convo) => {
-        const contact = await getContact(user.username, convo.contactId);
+        const contact = await getContact(user.id, convo.contactId);
         return { ...convo, username: contact?.username ?? convo.contactId };
       }),
     );
@@ -65,10 +65,16 @@ export default function MockupPage() {
   }, [user]);
 
   useEffect(() => {
-    if ("Notification" in window) {
-      setNeedsNotificationPrompt(Notification.permission === "default");
+    if (!("Notification" in window) || !user) return;
+    if (Notification.permission === "default") {
+      setNeedsNotificationPrompt(true);
+    } else if (Notification.permission === "granted") {
+      // Permission was already granted (e.g. from a previous account on this
+      // browser) — the "Enable" banner never shows, so re-subscribe here or
+      // this user's push subscription never gets registered on the server.
+      enablePushForUser(user.username);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!user || showRequests) return;
@@ -91,7 +97,7 @@ export default function MockupPage() {
 
   async function handleSelectContact(contact: Contact) {
     if (!user) return;
-    await getOrCreateConversation(user.username, contact.id);
+    await getOrCreateConversation(user.id, contact.id);
     await refreshConversations();
     setSelected(contact.username);
   }

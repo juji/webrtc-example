@@ -21,7 +21,7 @@ export function ServiceWorkerRegistration() {
 
     async function handleContactAccepted(data: ContactAcceptedData) {
       if (!user) return;
-      await syncAcceptedContact(user.username, data.contact, data.keyFingerprint);
+      await syncAcceptedContact(user.id, data.contact, data.keyFingerprint);
     }
 
     function handleMessage(event: MessageEvent) {

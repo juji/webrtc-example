@@ -30,7 +30,7 @@ export function RequestsPopup({
       for (const n of rows) {
         if (n.data.direction === "outgoing" && n.status === "accepted") {
           syncAcceptedContact(
-            user.username,
+            user.id,
             { id: n.data.otherUserId, username: n.data.otherUsername },
             n.data.scannedFingerprint,
           );
@@ -50,7 +50,7 @@ export function RequestsPopup({
     try {
       const contact = await acceptContactRequest(notification.id, user.username);
       await addContact({
-        ownerUsername: user.username,
+        ownerId: user.id,
         id: contact.id,
         username: contact.username,
         mlKemPublicKey: contact.mlKemPublicKey,

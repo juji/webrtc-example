@@ -1,5 +1,5 @@
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
-import { generateAndStoreKeys, loadKeys, toBase64 } from "./keys";
+import { generateKeys, loadKeys, storeKeys, toBase64 } from "./keys";
 import type { MessageRow } from "./messages-store";
 
 export const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:4000";
@@ -11,15 +11,20 @@ export type User = {
   createdAt: string;
 };
 
+// Registration needs the server-issued id before keys can be stored under it
+// (client/lib/keys.ts is id-keyed) — but the register call itself needs the
+// public keys. Generate first (no DB write), send the public halves, then
+// store the full bundle under the id the server just assigned.
 export async function register(username: string): Promise<User> {
-  const { dsaPublicKey, kemPublicKey } = await generateAndStoreKeys(username);
+  const bundle = generateKeys();
+
   const res = await fetch(`${SERVER_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       username,
-      mlDsaPublicKey: toBase64(dsaPublicKey),
-      mlKemPublicKey: toBase64(kemPublicKey),
+      mlDsaPublicKey: toBase64(bundle.dsaPublicKey),
+      mlKemPublicKey: toBase64(bundle.kemPublicKey),
     }),
   });
   if (res.status === 409) {
@@ -27,20 +32,26 @@ export async function register(username: string): Promise<User> {
   }
   if (!res.ok) throw new Error((await res.json()).error ?? "registration failed");
   const { user } = await res.json();
+
+  await storeKeys(user.id, bundle);
+
   return user;
 }
 
+// Login needs the server-issued id to look up local keys (id-keyed), but the
+// id isn't known until the server resolves the username — /auth/challenge
+// already looks the user up, so it returns userId alongside the nonce.
 export async function login(username: string): Promise<User> {
-  const keys = await loadKeys(username);
-  if (!keys) throw new Error("no local key for this username on this device");
-
   const challengeRes = await fetch(`${SERVER_URL}/auth/challenge`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username }),
   });
   if (!challengeRes.ok) throw new Error((await challengeRes.json()).error ?? "challenge failed");
-  const { nonce } = await challengeRes.json();
+  const { nonce, userId } = await challengeRes.json();
+
+  const keys = await loadKeys(userId);
+  if (!keys) throw new Error("no local key for this username on this device");
 
   const signature = ml_dsa65.sign(new TextEncoder().encode(nonce), keys.dsaSecretKey);
 
@@ -55,8 +66,14 @@ export async function login(username: string): Promise<User> {
 }
 
 export async function loginOrRegister(username: string): Promise<User> {
-  const existingKeys = await loadKeys(username);
-  return existingKeys ? login(username) : register(username);
+  const challengeRes = await fetch(`${SERVER_URL}/auth/challenge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+  if (challengeRes.status === 404) return register(username);
+  if (!challengeRes.ok) throw new Error((await challengeRes.json()).error ?? "challenge failed");
+  return login(username);
 }
 
 export type PublicUser = { id: string; username: string; mlKemPublicKey: string };

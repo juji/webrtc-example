@@ -31,7 +31,7 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
   // Generate "my QR code" whenever that tab is active.
   useEffect(() => {
     if (!open || tab !== "mine") return;
-    loadKeys(user.username).then(async (keys) => {
+    loadKeys(user.id).then(async (keys) => {
       if (!keys) return;
       const payload = JSON.stringify({
         id: user.id,

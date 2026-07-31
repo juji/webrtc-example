@@ -47,7 +47,7 @@ auth.post('/challenge', async (c) => {
 
   const nonce = crypto.randomUUID()
   pendingChallenges.set(trimmed, { nonce, expiresAt: Date.now() + CHALLENGE_TTL_MS })
-  return c.json({ nonce })
+  return c.json({ nonce, userId: user.id })
 })
 
 auth.post('/login', async (c) => {

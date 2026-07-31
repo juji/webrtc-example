@@ -43,32 +43,35 @@ export type KeyBundle = {
   kemSecretKey: Uint8Array;
 };
 
-export async function generateAndStoreKeys(username: string): Promise<KeyBundle> {
+export function generateKeys(): KeyBundle {
   const dsa = ml_dsa65.keygen();
   const kem = ml_kem768.keygen();
-  const bundle: KeyBundle = {
+  return {
     dsaPublicKey: dsa.publicKey,
     dsaSecretKey: dsa.secretKey,
     kemPublicKey: kem.publicKey,
     kemSecretKey: kem.secretKey,
   };
+}
 
+// Split from generateKeys() because registration needs the public keys
+// before the server round-trip (to send them), but can only store the
+// bundle under the server-issued id after that round-trip completes.
+export async function storeKeys(id: string, bundle: KeyBundle): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(bundle, username);
+    tx.objectStore(STORE_NAME).put(bundle, id);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
-
-  return bundle;
 }
 
-export async function loadKeys(username: string): Promise<KeyBundle | undefined> {
+export async function loadKeys(id: string): Promise<KeyBundle | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
-    const req = tx.objectStore(STORE_NAME).get(username);
+    const req = tx.objectStore(STORE_NAME).get(id);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });

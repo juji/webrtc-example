@@ -23,7 +23,7 @@ export function ContactsPopup({
   useEffect(() => {
     if (!open) return;
     setQuery("");
-    listContacts(user.username).then(setContacts);
+    listContacts(user.id).then(setContacts);
   }, [open, user]);
 
   const filtered = contacts.filter((c) => c.username.toLowerCase().includes(query.toLowerCase()));

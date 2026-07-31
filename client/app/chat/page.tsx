@@ -1,18 +1,19 @@
 "use client";
 
-import { Bell, LogOut, MessageCircle, QrCode } from "lucide-react";
+import { Bell, LogOut, MessageCircle, QrCode, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { ContactsPopup } from "@/components/contacts-popup";
 import { Popup } from "@/components/popup";
 import { QrCodePopup } from "@/components/qr-code-popup";
 import { RequestsPopup } from "@/components/requests-popup";
 import { fetchContactRequests } from "@/lib/api";
+import type { Contact } from "@/lib/contacts";
+import { getContact } from "@/lib/contacts";
+import { getOrCreateConversation, listConversations, type Conversation } from "@/lib/chats";
 import { enablePushForUser } from "@/lib/push";
 import { useSessionStore } from "@/lib/session-store";
 import { useRequireSession } from "@/lib/use-require-session";
-
-// Fake data, no backend calls yet — wire up a real /messages/conversations endpoint.
-const FAKE_CONVERSATIONS: { username: string; lastMessage: string; time: string; unread: number }[] = [];
 
 // useSearchParams() opts the page out of static rendering unless isolated
 // behind its own Suspense boundary — this component's only job is reading
@@ -39,9 +40,28 @@ export default function MockupPage() {
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
   const [highlightNotificationId, setHighlightNotificationId] = useState<string | null>(null);
   const [needsNotificationPrompt, setNeedsNotificationPrompt] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
+  const [conversations, setConversations] = useState<(Conversation & { username: string })[]>([]);
+
+  async function refreshConversations() {
+    if (!user) return;
+    const convos = await listConversations(user.username);
+    const joined = await Promise.all(
+      convos.map(async (convo) => {
+        const contact = await getContact(user.username, convo.contactId);
+        return { ...convo, username: contact?.username ?? convo.contactId };
+      }),
+    );
+    setConversations(joined);
+  }
+
+  useEffect(() => {
+    refreshConversations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useEffect(() => {
     if ("Notification" in window) {
@@ -66,6 +86,13 @@ export default function MockupPage() {
     if (!user) return;
     await enablePushForUser(user.username);
     setNeedsNotificationPrompt(Notification.permission === "default");
+  }
+
+  async function handleSelectContact(contact: Contact) {
+    if (!user) return;
+    await getOrCreateConversation(user.username, contact.id);
+    await refreshConversations();
+    setSelected(contact.username);
   }
 
   if (!user) return null;
@@ -106,6 +133,13 @@ export default function MockupPage() {
             >
               <QrCode className="h-4 w-4" />
             </button>
+            <button
+              onClick={() => setShowContacts(true)}
+              aria-label="Contacts"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
+            >
+              <Users className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
@@ -126,32 +160,24 @@ export default function MockupPage() {
         )}
 
         <ul className="flex flex-col gap-1 py-1">
-          {FAKE_CONVERSATIONS.map((c) => (
-            <li key={c.username}>
+          {conversations.map((c) => (
+            <li key={c.contactId}>
               <button
                 onClick={() => setSelected(c.username)}
                 className={`flex w-full flex-col gap-0.5 px-8 py-2.5 text-left hover:bg-black/5 dark:hover:bg-white/5 ${
                   selected === c.username ? "bg-black/5 dark:bg-white/5" : ""
                 }`}
               >
-                <div className="flex items-baseline justify-between">
-                  <span className="font-medium text-black dark:text-zinc-50">{c.username}</span>
-                  <span className="text-xs text-zinc-500">{c.time}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="truncate text-sm text-zinc-500">{c.lastMessage}</span>
-                  {c.unread > 0 && (
-                    <span className="ml-2 flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-foreground px-1.5 text-xs font-medium text-background">
-                      {c.unread}
-                    </span>
-                  )}
-                </div>
+                <span className="font-medium text-black dark:text-zinc-50">{c.username}</span>
+                <span className="truncate text-sm text-zinc-500">
+                  {c.lastMessage ? c.lastMessage.message : "No messages yet"}
+                </span>
               </button>
             </li>
           ))}
         </ul>
 
-        {FAKE_CONVERSATIONS.length === 0 && (
+        {conversations.length === 0 && (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/5 dark:bg-white/5">
               <MessageCircle className="h-6 w-6 text-zinc-400" />
@@ -198,6 +224,12 @@ export default function MockupPage() {
         onClose={() => setShowRequests(false)}
         user={user}
         highlightId={highlightNotificationId}
+      />
+      <ContactsPopup
+        open={showContacts}
+        onClose={() => setShowContacts(false)}
+        user={user}
+        onSelectContact={handleSelectContact}
       />
     </div>
   );

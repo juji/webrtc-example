@@ -84,4 +84,12 @@ detail: [phase-6-accept-and-persist.md](phase-6-accept-and-persist.md)
 ## Phase 7 — Decline flow
 
 detail: [phase-7-decline-flow.md](phase-7-decline-flow.md)
-- [ ] TBD
+- [ ] **Deliberately left unfinished.** Decided not to build this — a pending contact request can be accepted but not declined/rejected. Not a gap that was missed; a scope call made on purpose.
+
+## Phase 8 — Contacts UI
+
+detail: [phase-8-contacts-ui.md](phase-8-contacts-ui.md)
+- [x] **`ContactsPopup`** (`client/components/contacts-popup.tsx`, new): search bar + `listContacts()` results, opened via a new `Users` icon in `/chat`'s top bar (fourth trigger, alongside Notifications/QR/Logout). Clicking a contact closes the popup and selects it — a popup was chosen directly over a sidebar rewrite, matching the app's existing Logout/QR/Notifications pattern.
+- [x] **`webrtc-chats` IndexedDB** (`client/lib/chats.ts`, new — briefly `convos.ts`/`webrtc-convos` before a naming correction): compound keyPath `[ownerUsername, contactId]`, same scoping pattern as `webrtc-contacts`; `Conversation = { ownerUsername, contactId, lastMessage: {sender,message,status} | null, createdAt }` — `lastMessage` deliberately not a `messages` array, caught before building as scope creep into the messaging feature this whole plan has kept out of scope; `getOrCreateConversation` is an idempotent upsert.
+- [x] **`FAKE_CONVERSATIONS` removed from `/chat`**, replaced with real state from `listConversations()` joined against `getContact()` for display usernames; selecting a contact calls `getOrCreateConversation` then refreshes — the existing right-pane placeholder ("chat with X renders here") is otherwise untouched, since a real chat screen isn't designed yet.
+- [ ] No chat/messaging UI — explicitly out of scope, same boundary this plan has held since Phase 1.

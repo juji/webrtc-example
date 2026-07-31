@@ -6,7 +6,7 @@
     "server"
   ],
   "scripts": {
-    "dev": "docker compose up -d && trap 'docker compose down' EXIT && bun run --filter '*' dev",
+    "dev": "./dev.sh",
     "test:e2e": "bun run e2e/chat.test.mjs && bun run e2e/failover.test.mjs",
     "wipe": "docker compose down -v"
   },

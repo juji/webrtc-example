@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, LogOut, MessageCircle, QrCode, Users } from "lucide-react";
+import { ArrowLeft, Bell, LogOut, MessageCircle, QrCode, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { ContactsPopup } from "@/components/contacts-popup";
@@ -107,7 +107,11 @@ export default function MockupPage() {
           }}
         />
       </Suspense>
-      <div className="flex w-full flex-col overflow-y-auto md:w-sm md:shrink-0 md:border-r md:border-black/10 md:dark:border-white/10">
+      <div
+        className={`w-full flex-col overflow-y-auto md:flex md:w-sm md:shrink-0 md:border-r md:border-black/10 md:dark:border-white/10 ${
+          selected ? "hidden" : "flex"
+        }`}
+      >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-background/30 px-8 py-6 shadow-xl backdrop-blur-lg dark:border-white/10">
           <h1 className="text-xl font-semibold text-black dark:text-zinc-50">Chats</h1>
           <div className="flex items-center gap-2">
@@ -200,12 +204,24 @@ export default function MockupPage() {
         </div>
       </div>
 
-      <div className="hidden flex-1 items-center justify-center md:flex">
-        {selected ? (
-          <p className="text-sm text-zinc-500">chat with {selected} renders here</p>
-        ) : (
-          <p className="text-sm text-zinc-500">Select a conversation</p>
+      <div className={`flex-1 flex-col ${selected ? "flex" : "hidden md:flex"}`}>
+        {selected && (
+          <button
+            onClick={() => setSelected(null)}
+            aria-label="Back to chats"
+            className="flex items-center gap-2 px-8 py-6 text-sm text-black md:hidden dark:text-zinc-50"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
         )}
+        <div className="flex flex-1 items-center justify-center">
+          {selected ? (
+            <p className="text-sm text-zinc-500">chat with {selected} renders here</p>
+          ) : (
+            <p className="text-sm text-zinc-500">Select a conversation</p>
+          )}
+        </div>
       </div>
 
       <Popup

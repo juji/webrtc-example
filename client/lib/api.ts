@@ -59,13 +59,6 @@ export async function loginOrRegister(username: string): Promise<User> {
   return existingKeys ? login(username) : register(username);
 }
 
-export async function searchUsers(query: string, exclude: string): Promise<User[]> {
-  const params = new URLSearchParams({ q: query, exclude });
-  const res = await fetch(`${SERVER_URL}/users?${params}`);
-  const { users } = await res.json();
-  return users;
-}
-
 export async function sendFailoverMessage(args: {
   clientId: string;
   fromUsername: string;

@@ -6,7 +6,14 @@ Found while starting this plan: `webrtc-keys` (`client/lib/keys.ts`), `webrtc-co
 
 ## Phase 0 — Migrate `webrtc-keys`/`webrtc-contacts`/`webrtc-chats` to id-keyed
 
-- [ ] TBD
+- [x] **`/auth/challenge`** (`server/src/routes/auth.ts`): response now includes `userId` alongside `nonce` — it already looks up the user row to issue the challenge, so the client learns the id before it needs it for a key lookup
+- [x] **`client/lib/keys.ts`**: `generateAndStoreKeys(username)` split into `generateKeys()` (pure keygen, no DB write) + `storeKeys(id, bundle)` — registration needs the public keys before the server round-trip, but can only store the bundle under the server-issued id after; `loadKeys(username)` → `loadKeys(id)`
+- [x] **`client/lib/api.ts`**: `register()` generates keys, sends public halves, stores the full bundle under the returned `user.id`; `login()` calls `/auth/challenge` to get `userId` before `loadKeys(userId)`; `loginOrRegister()` calls `/auth/challenge` once and branches on 404 (register) vs found (login) — login path issues a second, redundant challenge call internally, accepted since challenges are cheap/short-TTL
+- [x] **`client/lib/contacts.ts`** / **`client/lib/chats.ts`**: `ownerUsername` → `ownerId` throughout — types, IndexedDB keyPath/index, function signatures
+- [x] **Five call sites updated**: `qr-code-popup.tsx`, `service-worker-registration.tsx`, `requests-popup.tsx`, `contacts-popup.tsx`, `chat/page.tsx`
+- [x] No migration path for pre-existing browser-local IndexedDB data — old username-keyed records are orphaned under the new id-based lookups; accepted, no real user data existed yet
+- [x] Verified: `client/` and `server/` typecheck clean; curl-verified `/auth/challenge` returns the correct `userId` for a real registered user
+- [x] **Bug found and fixed, adjacent but not this migration:** a browser with notification permission already `"granted"` (from a prior account) never re-subscribed to push for a new account, since the enable banner/`enablePushForUser()` call only fires on `"default"` permission — surfaced as the new account never receiving push. Fixed in `client/app/chat/page.tsx`; full detail in `plans/contacts/checklist.md` Phase 5.
 
 ## Phase 1 — `webrtc-convos` schema
 

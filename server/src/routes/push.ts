@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
 import { db } from '../db'
 import { pushSubscriptions, users } from '../db/schema'
-import { sendPush, VAPID_PUBLIC_KEY } from '../push'
+import { notifyUserByPush, VAPID_PUBLIC_KEY } from '../push'
 
 export const pushRoute = new Hono()
 
@@ -56,13 +56,7 @@ pushRoute.post('/test', async (c) => {
   const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, user.id))
   if (subs.length === 0) return c.json({ error: 'no push subscription for this user' }, 404)
 
-  await Promise.all(
-    subs.map((sub) =>
-      sendPush(sub, { title: 'Primssg', body: 'Test push notification' }).catch((err) => {
-        console.error('push send failed:', err)
-      }),
-    ),
-  )
+  await notifyUserByPush(user.id, { title: 'Primssg', body: 'Test push notification' })
 
   return c.json({ ok: true, sent: subs.length })
 })

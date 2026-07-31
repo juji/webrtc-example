@@ -2,6 +2,7 @@ import { CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } from '
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { auth } from './routes/auth'
+import { contactsRoute } from './routes/contacts'
 import { messagesRoute } from './routes/messages'
 import { pushRoute } from './routes/push'
 import { turn } from './routes/turn'
@@ -19,6 +20,7 @@ app.route('/turn', turn)
 app.route('/signaling', signaling)
 app.route('/messages', messagesRoute)
 app.route('/push', pushRoute)
+app.route('/contacts', contactsRoute)
 
 async function ensureAttachmentsBucket() {
   try {

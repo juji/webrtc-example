@@ -102,6 +102,23 @@ export async function sendTestPush(username: string): Promise<void> {
   if (!res.ok) throw new Error((await res.json()).error ?? "test push failed");
 }
 
+export async function sendContactRequest(fromUsername: string, toId: string): Promise<void> {
+  const res = await fetch(`${SERVER_URL}/contacts/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fromUsername, toId }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error ?? "failed to send contact request");
+}
+
+export type ContactRequest = { id: string; fromUsername: string; createdAt: string };
+
+export async function fetchContactRequests(username: string): Promise<ContactRequest[]> {
+  const res = await fetch(`${SERVER_URL}/contacts/requests?username=${encodeURIComponent(username)}`);
+  const { requests } = await res.json();
+  return requests;
+}
+
 export async function sendFailoverMessage(args: {
   clientId: string;
   fromUsername: string;

@@ -18,6 +18,14 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
+export const contactRequests = pgTable('contact_requests', {
+  id: uuid('id').primaryKey().$defaultFn(uuidv7),
+  fromUserId: uuid('from_user_id').notNull().references(() => users.id),
+  toUserId: uuid('to_user_id').notNull().references(() => users.id),
+  status: text('status').notNull().default('pending'), // 'pending' | 'accepted'
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
 export const messages = pgTable('messages', {
   id: uuid('id').primaryKey().$defaultFn(uuidv7),
   clientId: text('client_id').notNull(),

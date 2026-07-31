@@ -26,5 +26,19 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url ?? "/";
-  event.waitUntil(self.clients.openWindow(url));
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c) => new URL(c.url).origin === self.location.origin);
+      if (existing) {
+        // postMessage instead of client.navigate(): navigate() forces a full
+        // document reload, bypassing Next's client-side router entirely.
+        // The already-running app listens for this and does a real client-side
+        // transition instead (see client/app/service-worker-registration.tsx).
+        existing.postMessage({ type: "notification-click", url });
+        return existing.focus();
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
 });

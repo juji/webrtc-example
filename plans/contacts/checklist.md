@@ -50,9 +50,23 @@ detail: [phase-4-push-notifications.md](phase-4-push-notifications.md)
 ## Phase 5 — Contact request + notification screen
 
 detail: [phase-5-contact-request.md](phase-5-contact-request.md)
-- [ ] TBD
+- [x] **`contact_requests` table** (`server/src/db/schema.ts`): `fromUserId`, `toUserId`, `status` (`'pending'`/`'accepted'` text, matches the schema's no-pg-enum style elsewhere), durable — this is what replaced the earlier "both parties live" in-memory design
+- [x] **`POST /contacts/request`** (`server/src/routes/contacts.ts`): creates the row (reuses an existing pending request rather than duplicating on a repeat scan) and pushes AA via the shared `notifyUserByPush()` helper (extracted from Phase 4's `/push/test` logic), payload's `url` set to `/chat?open=requests` — the query param is what tells `/chat` to auto-open the requests popup on arrival
+- [x] **`GET /contacts/requests?username=`**: lists a user's pending incoming requests (`fromUsername`, `createdAt`) — join on `users` for the display name
+- [x] **"Send contact request" button** added to the QR-scan popup's Verified state (`client/components/qr-code-popup.tsx`) — idle/sending/sent/error states, only shown once a scan is cryptographically verified
+- [x] **`RequestsPopup`** (`client/components/requests-popup.tsx`): lists pending incoming requests, opened via a Bell icon in `/chat`'s header — built first as a `/requests` route, then converted to a popup to match the existing Logout/QR-code popup pattern; Accept button present but disabled/no-op — wiring the actual accept action is Phase 6
+- [x] **Notification banner on `/chat`**: shown only when `Notification.permission === "default"`, an explicit "Enable" button (green) is the real user-gesture that triggers the permission prompt — automatic/silent prompting isn't possible (browsers require a genuine click) and wasn't attempted
+- [x] **`notificationclick` fixed twice, post-build**: first pass (`self.clients.openWindow()`) always opened a *new* tab even when the app was already open; second pass (`existing.navigate(url)`) fixed that but caused a full page reload, bypassing Next's client-side router; final version has the service worker `postMessage` the existing tab instead, and `ServiceWorkerRegistration` (`client/app/service-worker-registration.tsx`) listens for that message and calls `router.push()` — a real client-side transition, no reload
+- [x] **`?open=requests` query param**: `/chat` reads it via a `useSearchParams()`-based `OpenRequestsFromQuery` sub-component (isolated behind its own `<Suspense>` boundary — required for `next build` to statically prerender `/chat`, confirmed by a real build failure before this was added) and auto-opens `RequestsPopup`, then strips the param via `router.replace("/chat")` so a refresh doesn't re-trigger it
+- [x] Verified server-side via curl: request creation, duplicate-request reuse (same `id` returned, not a new row), self-request rejection (400), and the request correctly appearing in the recipient's `GET /contacts/requests`
 
 ## Phase 6 — Accept flow + contact persistence
 
 detail: [phase-6-accept-and-persist.md](phase-6-accept-and-persist.md)
+- [x] **Preamble — notification count badge**: `/chat` fetches `fetchContactRequests(user.username)` on mount and whenever `RequestsPopup` closes (so the count refreshes after any future accept/decline action), showing a red circular badge with a white number (`9+` past 9) on the Bell icon's corner when `requestCount > 0`
+- [ ] TBD
+
+## Phase 7 — Decline flow
+
+detail: [phase-7-decline-flow.md](phase-7-decline-flow.md)
 - [ ] TBD

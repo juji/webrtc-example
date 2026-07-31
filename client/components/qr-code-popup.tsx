@@ -4,7 +4,7 @@ import { Upload } from "lucide-react";
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 import type { User } from "@/lib/api";
-import { fetchUserById } from "@/lib/api";
+import { fetchUserById, sendContactRequest } from "@/lib/api";
 import { fingerprint, fromBase64, loadKeys } from "@/lib/keys";
 import { decodeQrFromFile, type DecodeFileError, scanQrFromVideo, type ScannedContact } from "@/lib/scan-qr";
 import { Popup } from "./popup";
@@ -16,6 +16,7 @@ type VerifyResult =
   | { status: "mismatch" }
   | { status: "not-found" }
   | { status: "network-error" };
+type RequestState = "idle" | "sending" | "sent" | "error";
 
 export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: () => void; user: User }) {
   const [tab, setTab] = useState<Tab>("mine");
@@ -23,6 +24,7 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
   const [scanned, setScanned] = useState<ScannedContact | null>(null);
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const [uploadError, setUploadError] = useState<DecodeFileError | null>(null);
+  const [requestState, setRequestState] = useState<RequestState>("idle");
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -103,8 +105,21 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
       setScanned(null);
       setVerifyResult(null);
       setUploadError(null);
+      setRequestState("idle");
     }
   }, [open]);
+
+  async function handleSendRequest() {
+    if (!scanned) return;
+    setRequestState("sending");
+    try {
+      await sendContactRequest(user.username, scanned.id);
+      setRequestState("sent");
+    } catch (err) {
+      console.error("failed to send contact request:", err);
+      setRequestState("error");
+    }
+  }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -213,6 +228,21 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
                       Verified: {verifyResult.username}
                     </p>
                     <p className="text-sm text-zinc-500">Key fingerprint matches — safe to add as a contact.</p>
+                    {requestState === "sent" ? (
+                      <p className="text-sm text-green-600 dark:text-green-500">Contact request sent.</p>
+                    ) : (
+                      <button
+                        onClick={handleSendRequest}
+                        disabled={requestState === "sending"}
+                        className="rounded-full px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                        style={{ backgroundColor: "#ea580c" }}
+                      >
+                        {requestState === "sending" ? "Sending…" : "Send contact request"}
+                      </button>
+                    )}
+                    {requestState === "error" && (
+                      <p className="text-sm text-red-500">Couldn&apos;t send the request. Try again.</p>
+                    )}
                   </>
                 )}
                 {verifyResult?.status === "mismatch" && (
@@ -230,6 +260,7 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
                   onClick={() => {
                     setScanned(null);
                     setVerifyResult(null);
+                    setRequestState("idle");
                   }}
                   className="text-sm text-zinc-500 underline hover:text-zinc-700 dark:hover:text-zinc-300"
                 >

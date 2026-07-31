@@ -1,4 +1,4 @@
-# Phase 6 — Vendor: Metered
+# Phase 5 — Vendor: Metered
 
 ## File
 
@@ -28,10 +28,10 @@ This is the existing `turn.ts` logic, ported unchanged into the adapter shape �
 
 ## Wiring in
 
-Add `import { metered } from '../turn-providers/metered'` to `turn.ts`, add `metered` as the fourth entry in the `providers` array (Phase 2), after `openRelay`. Delete the old inline logic this replaces (the original contents of `turn.ts` before Phase 2's rewrite).
+Add `import { metered } from '../turn-providers/metered'` to `turn.ts`, add `metered` as the third entry in the `providers` array (Phase 2), after `cfSpeed`. Delete the old inline logic this replaces (the original contents of `turn.ts` before Phase 2's rewrite).
 
 ## Verification
 
-1. Rename `METERED_APP_NAME` to `METERED_SERVICE` in `server/.env` (and unset the higher-priority vars from Phases 3–5).
+1. Rename `METERED_APP_NAME` to `METERED_SERVICE` in `server/.env` (and unset the higher-priority vars from Phases 3–4).
 2. `curl http://localhost:4000/turn/credentials` — confirm the response is identical in shape to what the pre-refactor endpoint returned.
 3. Relay-candidate check via the same Playwright approach as Phase 3 — this is a regression check, since this integration already worked before the refactor; a failure here means the port to the adapter shape broke something, not that Metered itself is failing.

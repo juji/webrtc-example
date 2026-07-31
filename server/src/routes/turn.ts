@@ -1,22 +1,21 @@
 import { Hono } from 'hono'
+import { cfSpeed } from '../turn-providers/cf-speed'
+import { coturn } from '../turn-providers/coturn'
+import { metered } from '../turn-providers/metered'
+import type { TurnProvider } from '../turn-providers/types'
 
 export const turn = new Hono()
 
+const providers: TurnProvider[] = [coturn, cfSpeed, metered]
+
 turn.get('/credentials', async (c) => {
-  const appName = process.env.METERED_APP_NAME
-  const apiKey = process.env.METERED_API_KEY
+  const provider = providers.find((p) => p.isConfigured())
+  if (!provider) return c.json({ error: 'TURN credentials are not configured' }, 500)
 
-  if (!appName || !apiKey) {
-    return c.json({ error: 'TURN credentials are not configured' }, 500)
+  try {
+    const iceServers = await provider.getIceServers()
+    return c.json({ iceServers })
+  } catch {
+    return c.json({ error: `${provider.name} TURN request failed` }, 502)
   }
-
-  const res = await fetch(`https://${appName}.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`)
-
-  if (!res.ok) {
-    return c.json({ error: 'failed to fetch TURN credentials' }, 502)
-  }
-
-  const iceServers = await res.json()
-
-  return c.json({ iceServers })
 })

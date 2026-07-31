@@ -1,4 +1,4 @@
-# Phase 7 — Vendor: Twilio
+# Phase 6 — Vendor: Twilio
 
 ## File
 
@@ -6,7 +6,7 @@
 
 ## Dependency
 
-`cd server && bun add twilio` — the official `twilio` npm package (5.5M+ weekly downloads, actively maintained). The only one of the seven vendors with a real, documented SDK method for TURN credential generation (confirmed via npm survey — the other six vendors either have no SDK at all, or their SDK doesn't cover this specific API).
+`cd server && bun add twilio` — the official `twilio` npm package (5.5M+ weekly downloads, actively maintained). The only one of the six vendors with a real, documented SDK method for TURN credential generation (confirmed via npm survey — the other five vendors either have no SDK at all, or their SDK doesn't cover this specific API).
 
 ## Adapter
 
@@ -31,10 +31,10 @@ export const twilio: TurnProvider = {
 
 ## Wiring in
 
-Add `import { twilio } from '../turn-providers/twilio'` to `turn.ts`, add `twilio` as the fifth entry in the `providers` array (Phase 2), after `metered`.
+Add `import { twilio } from '../turn-providers/twilio'` to `turn.ts`, add `twilio` as the fourth entry in the `providers` array (Phase 2), after `metered`.
 
 ## Verification
 
-1. Set `TWILIO_SERVICE`/`TWILIO_AUTH_TOKEN` in `server/.env` (and unset the higher-priority vars from Phases 3–6).
+1. Set `TWILIO_SERVICE`/`TWILIO_AUTH_TOKEN` in `server/.env` (and unset the higher-priority vars from Phases 3–5).
 2. `curl http://localhost:4000/turn/credentials` — confirm `iceServers` contains Twilio's `global.turn.twilio.com`-style entries.
 3. Relay-candidate check via the same Playwright approach as Phase 3 — also confirms the SDK's `ice_servers` passthrough mapping is correct, since a malformed shape would show up as zero candidates or a browser-side ICE error rather than a clean failure.

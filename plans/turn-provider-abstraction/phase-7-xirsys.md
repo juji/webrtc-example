@@ -1,4 +1,4 @@
-# Phase 8 — Vendor: Xirsys
+# Phase 7 — Vendor: Xirsys
 
 ## File
 
@@ -38,10 +38,10 @@ Response shape is `{ v: { iceServers: { urls: [...], username, credential } }, s
 
 ## Wiring in
 
-Add `import { xirsys } from '../turn-providers/xirsys'` to `turn.ts`, add `xirsys` as the sixth entry in the `providers` array (Phase 2), after `twilio`.
+Add `import { xirsys } from '../turn-providers/xirsys'` to `turn.ts`, add `xirsys` as the fifth entry in the `providers` array (Phase 2), after `twilio`.
 
 ## Verification
 
-1. Set `XIRSYS_SERVICE`/`XIRSYS_SECRET`/`XIRSYS_CHANNEL` in `server/.env` (and unset the higher-priority vars from Phases 3–7).
+1. Set `XIRSYS_SERVICE`/`XIRSYS_SECRET`/`XIRSYS_CHANNEL` in `server/.env` (and unset the higher-priority vars from Phases 3–6).
 2. `curl http://localhost:4000/turn/credentials` — confirm `iceServers` contains one entry with Xirsys's `turn:`/`stun:` URLs.
 3. Relay-candidate check via the same Playwright approach as Phase 3 — also confirms the single-object-not-array unwrapping (`[body.v.iceServers]`) is correct, since getting this wrong would silently produce a zero-length or malformed `iceServers` array rather than an obvious error.

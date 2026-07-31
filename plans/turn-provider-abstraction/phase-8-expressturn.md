@@ -1,4 +1,4 @@
-# Phase 9 — Vendor: ExpressTURN
+# Phase 8 — Vendor: ExpressTURN
 
 ## File
 
@@ -31,10 +31,10 @@ No REST API — ExpressTURN issues static long-term credentials via their dashbo
 
 ## Wiring in
 
-Add `import { expressTurn } from '../turn-providers/express-turn'` to `turn.ts`, add `expressTurn` as the seventh and last entry in the `providers` array (Phase 2), after `xirsys`.
+Add `import { expressTurn } from '../turn-providers/express-turn'` to `turn.ts`, add `expressTurn` as the sixth and last entry in the `providers` array (Phase 2), after `xirsys`.
 
 ## Verification
 
-1. Set `EXPRESSTURN_SERVICE`/`EXPRESSTURN_USERNAME`/`EXPRESSTURN_PASSWORD` in `server/.env` (and unset the higher-priority vars from Phases 3–8).
+1. Set `EXPRESSTURN_SERVICE`/`EXPRESSTURN_USERNAME`/`EXPRESSTURN_PASSWORD` in `server/.env` (and unset the higher-priority vars from Phases 3–7).
 2. `curl http://localhost:4000/turn/credentials` — confirm `iceServers` contains the static ExpressTURN entry with the configured username.
 3. Relay-candidate check via the same Playwright approach as Phase 3, against the static credentials.

@@ -13,7 +13,6 @@ services:
     restart: unless-stopped
     network_mode: host
     command:
-      - -n
       - --log-file=stdout
       - --listening-port=3478
       - --min-port=49160
@@ -23,7 +22,9 @@ services:
       - --realm=webrtc.local
 ```
 
-`COTURN_SECRET` is read from the shell environment at `docker compose up` time (same pattern as any compose var substitution) — the actual value lives in `server/.env`, and gets exported before `docker compose up` runs, matching how this project already starts things (`bun run dev`'s `docker compose up -d` step).
+No `-n` flag: the official `coturn/coturn` image's entrypoint (`docker-entrypoint.sh`) runs `eval "echo $i"` over each command-list argument to expand shell substitutions like `$(detect-external-ip)`. Fed `-n`, that `eval echo -n` is interpreted as `echo`'s "no trailing newline" flag, so it expands to an empty string instead of the literal `-n` — coturn then fails with `ERROR: CONFIG: Unknown argument:` (blank). Omitting `-n` (it only means "don't daemonize," moot in a foreground container) avoids the entrypoint's eval bug entirely.
+
+`COTURN_SECRET` is defined in a root-level `.env` file (gitignored, alongside the existing `.gitignore` entries for `.env`/`.env.*`), which Docker Compose auto-loads for `${...}` substitution since it sits next to `docker-compose.yml` — no shell export step needed before `docker compose up`. The same value is also duplicated into `server/.env`, since Phase 2/3's server code reads it via `process.env` (Bun auto-loads `server/.env` for the server process) — the two files serve different consumers (Compose var substitution vs. the running Bun process) even though the value is identical.
 
 ## Why `network_mode: host`, not port mapping
 

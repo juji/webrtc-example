@@ -1,13 +1,13 @@
-# Phase 10 — Cross-vendor checks
+# Phase 9 — Cross-vendor checks
 
 ## Why this phase exists
 
-Phases 3–9 each verify one vendor in isolation (its own env vars set, everything else unset). This phase checks properties that only make sense once multiple vendors' adapters coexist in the same `providers` array — the priority-order guarantee, and the app actually working end-to-end with the abstraction in place, not just the isolated `curl`+relay-candidate checks each vendor phase already did.
+Phases 3–8 each verify one vendor in isolation (its own env vars set, everything else unset). This phase checks properties that only make sense once multiple vendors' adapters coexist in the same `providers` array — the priority-order guarantee, and the app actually working end-to-end with the abstraction in place, not just the isolated `curl`+relay-candidate checks each vendor phase already did.
 
 ## Priority order check
 
 - [ ] With **two or more** `*_SERVICE` vars set simultaneously (e.g. both `COTURN_SERVICE` and `METERED_SERVICE`), confirm `/turn/credentials` always returns coturn's servers (first in priority order, per checklist.md and Phase 2's fixed array order) — call the endpoint multiple times, confirm the response is identical every time, not alternating or random.
-- [ ] With **all seven** `*_SERVICE` vars set at once, confirm coturn still wins — the highest-priority provider being selected shouldn't depend on how many others are also configured.
+- [ ] With **all six** `*_SERVICE` vars set at once, confirm coturn still wins — the highest-priority provider being selected shouldn't depend on how many others are also configured.
 
 ## App-level check
 
@@ -17,4 +17,4 @@ Phases 3–9 each verify one vendor in isolation (its own env vars set, everythi
 
 ## Cleanup
 
-- [ ] Once all checks pass, unset every `*_SERVICE` env var except whichever one should be the actual default for this project going forward (a decision for whoever's deploying this, not part of this plan) — leaving all seven set permanently in `server/.env` after verification is done would make `/turn/credentials`'s behavior needlessly opaque (always picks the same one, but for a non-obvious reason to anyone reading `.env` later).
+- [ ] Once all checks pass, unset every `*_SERVICE` env var except whichever one should be the actual default for this project going forward (a decision for whoever's deploying this, not part of this plan) — leaving all six set permanently in `server/.env` after verification is done would make `/turn/credentials`'s behavior needlessly opaque (always picks the same one, but for a non-obvious reason to anyone reading `.env` later).

@@ -59,6 +59,15 @@ export async function loginOrRegister(username: string): Promise<User> {
   return existingKeys ? login(username) : register(username);
 }
 
+export type PublicUser = { id: string; username: string; mlKemPublicKey: string };
+
+export async function fetchUserById(id: string): Promise<PublicUser | null> {
+  const res = await fetch(`${SERVER_URL}/users/${id}`);
+  if (!res.ok) return null;
+  const { user } = await res.json();
+  return user;
+}
+
 export async function sendFailoverMessage(args: {
   clientId: string;
   fromUsername: string;

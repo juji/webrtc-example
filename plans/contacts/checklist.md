@@ -16,6 +16,13 @@ detail: [phase-1-qr-creation.md](phase-1-qr-creation.md)
 
 ## Phase 2 — QR code scan
 
+detail: [phase-2-qr-scan.md](phase-2-qr-scan.md)
+- [x] **`GET /users/:id`** (`server/src/routes/users.ts`): looked up by id only (not search), returns `{ id, username, mlKemPublicKey }` — needed to fetch a scanned contact's real key
+- [x] **Popup merged into one, tabbed component** (`client/components/qr-code-popup.tsx`): "QR Code" title, "My QR Code" / "Scan QR Code" tabs; the old inline QR-generation code from `/chat` moved here unchanged
+- [x] **Scan tab**: live camera (`getUserMedia`, rear camera preferred) decoded frame-by-frame via `jsQR`, plus an upload-image fallback for when the camera is unavailable/denied — both decode to the same `{ id, username?, keyFingerprint }` shape
+- [x] **Fetch + verify**: on a successful scan, fetches the real `mlKemPublicKey` by `id` from the new endpoint, hashes it locally with the existing `fingerprint()` helper, and only reports "Verified" if it matches the scanned `keyFingerprint` — Verified / Mismatch / Not-found states shown to the user
+- [ ] **Not yet wired**: a "Verified" result doesn't do anything yet (no add-contact action) — that's Phase 3
+
 ## Phase 3 — The handshake
 
 ## Phase 4 — Contact persistence

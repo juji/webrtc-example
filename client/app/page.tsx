@@ -15,7 +15,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (hasHydrated && user) router.replace("/users");
+    if (hasHydrated && user) router.replace("/chat");
   }, [hasHydrated, user, router]);
 
   if (!hasHydrated || user) return null;
@@ -27,7 +27,7 @@ export default function Home() {
     try {
       const user = await loginOrRegister(username);
       setUser(user);
-      router.push("/users");
+      router.push("/chat");
     } catch (err) {
       setError(err instanceof Error ? err.message : "something went wrong");
     } finally {

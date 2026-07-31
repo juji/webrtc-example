@@ -1,28 +1,10 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, MessageCircle } from "lucide-react";
 import { useState } from "react";
 
-// Mockup only — fake data, no backend calls. For visual review before wiring up
-// a real /messages/conversations endpoint. Delete this route once the real
-// conversation-list page replaces it.
-const FAKE_CONVERSATIONS = [
-  { username: "bob", lastMessage: "hey, got your file", time: "2m", unread: 2 },
-  { username: "carol", lastMessage: "see you tomorrow", time: "1d", unread: 0 },
-  { username: "dave", lastMessage: "sent an attachment", time: "3d", unread: 0 },
-  { username: "erin", lastMessage: "lol yeah for sure", time: "4d", unread: 0 },
-  { username: "frank", lastMessage: "can you send that doc again", time: "5d", unread: 1 },
-  { username: "grace", lastMessage: "sounds good, talk soon", time: "6d", unread: 0 },
-  { username: "heidi", lastMessage: "thanks!!", time: "1w", unread: 0 },
-  { username: "ivan", lastMessage: "on my way", time: "1w", unread: 0 },
-  { username: "judy", lastMessage: "did you see the news", time: "2w", unread: 0 },
-  { username: "kevin", lastMessage: "haha nice", time: "2w", unread: 3 },
-  { username: "laura", lastMessage: "let's catch up sometime", time: "3w", unread: 0 },
-  { username: "mallory", lastMessage: "no worries", time: "1mo", unread: 0 },
-  { username: "niaj", lastMessage: "got it, thanks", time: "1mo", unread: 0 },
-  { username: "olivia", lastMessage: "see the attached file", time: "2mo", unread: 0 },
-  { username: "peggy", lastMessage: "yep that works for me", time: "2mo", unread: 0 },
-];
+// Fake data, no backend calls yet — wire up a real /messages/conversations endpoint.
+const FAKE_CONVERSATIONS: { username: string; lastMessage: string; time: string; unread: number }[] = [];
 
 export default function MockupPage() {
   const [selected, setSelected] = useState<string | null>(null);
@@ -61,7 +43,15 @@ export default function MockupPage() {
         </ul>
 
         {FAKE_CONVERSATIONS.length === 0 && (
-          <p className="px-8 text-sm text-zinc-500">No conversations yet.</p>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 py-16 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/5 dark:bg-white/5">
+              <MessageCircle className="h-6 w-6 text-zinc-400" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <p className="font-medium text-black dark:text-zinc-50">No chats yet</p>
+              <p className="text-sm text-zinc-500">Start a conversation to see it here.</p>
+            </div>
+          </div>
         )}
 
         <div className="sticky bottom-0 mt-auto flex items-center justify-end border-t border-black/10 bg-background px-8 py-4 dark:border-white/10">

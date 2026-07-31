@@ -54,4 +54,4 @@ Confirm the log shows coturn started listening on `3478` with no config errors, 
 # credentials (Phase 2 provides the credential-generation code this needs).
 ```
 
-The full relay-candidate check (a real `RTCPeerConnection` actually gathering a `relay` candidate through this coturn instance) happens in Phase 3, once Phase 2's credential endpoint exists to generate valid HMAC credentials for the test to use — Phase 1's own verification is just "coturn is up and listening," not "TURN actually works end-to-end."
+The full relay-candidate check (a real `RTCPeerConnection` actually gathering a `relay` candidate through this coturn instance) happens in Phase 3 (the coturn vendor phase), once Phase 2's dispatch plumbing and Phase 3's HMAC credential code exist to generate valid credentials for the test to use — Phase 1's own verification is just "coturn is up and listening," not "TURN actually works end-to-end."

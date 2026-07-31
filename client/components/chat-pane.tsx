@@ -3,9 +3,10 @@
 import { ArrowLeft, Paperclip, Send } from "lucide-react";
 import { useRef, useState } from "react";
 
-// Mockup only — fake data standing in for useWebRtcChat's real shape
-// (client/lib/use-webrtc-chat.ts) until this pane is wired to it for real.
-type MockMessage = {
+// UI-only pane — no useWebRtcChat wiring yet. Shape matches ChatMessage
+// (client/lib/messages-store.ts) plus a createdAt this pane needs for the
+// date/time labels, which the real store doesn't track yet.
+export type ChatPaneMessage = {
   clientId: string;
   text?: string;
   file?: { name: string; type: string };
@@ -13,19 +14,6 @@ type MockMessage = {
   status: "sending" | "in-transit" | "sent" | "read";
   createdAt: Date;
 };
-
-function daysAgo(days: number, hour: number, minute: number): Date {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  d.setHours(hour, minute, 0, 0);
-  return d;
-}
-
-const MOCK_MESSAGES: MockMessage[] = [
-  { clientId: "1", text: "hey, got the QR scanned okay?", fromSelf: false, status: "sent", createdAt: daysAgo(1, 10, 0) },
-  { clientId: "2", text: "yep, verified and added", fromSelf: true, status: "read", createdAt: daysAgo(1, 10, 2) },
-  { clientId: "3", text: "sending this one now", fromSelf: true, status: "in-transit", createdAt: daysAgo(0, 8, 17) },
-];
 
 function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -46,9 +34,18 @@ function formatTime(date: Date): string {
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
-export function ChatPane({ username, onBack }: { username: string; onBack?: () => void }) {
+export function ChatPane({
+  username,
+  messages,
+  connected,
+  onBack,
+}: {
+  username: string;
+  messages: ChatPaneMessage[];
+  connected: boolean;
+  onBack?: () => void;
+}) {
   const [draft, setDraft] = useState("");
-  const connected = true;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function handleSubmit(e: React.FormEvent) {
@@ -92,8 +89,8 @@ export function ChatPane({ username, onBack }: { username: string; onBack?: () =
       </div>
 
       <ul className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-0 pb-6">
-        {MOCK_MESSAGES.map((m, i) => {
-          const prev = MOCK_MESSAGES[i - 1];
+        {messages.map((m, i) => {
+          const prev = messages[i - 1];
           const showDateSeparator = !prev || !isSameDay(prev.createdAt, m.createdAt);
           return (
             <li key={m.clientId} className="contents">

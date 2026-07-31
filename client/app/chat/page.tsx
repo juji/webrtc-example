@@ -207,7 +207,7 @@ export default function MockupPage() {
 
       <div className={`min-h-0 flex-1 flex-col ${selected ? "flex" : "hidden md:flex"}`}>
         {selected ? (
-          <ChatPane username={selected} onBack={() => setSelected(null)} />
+          <ChatPane username={selected} messages={[]} connected={false} onBack={() => setSelected(null)} />
         ) : (
           <div className="flex flex-1 items-center justify-center">
             <p className="text-sm text-zinc-500">Select a conversation</p>

@@ -2,7 +2,7 @@
 
 ## Files
 
-`client/components/contacts-popup.tsx` (new), `client/lib/chats.ts` (new, briefly named `convos.ts` before a rename), `client/app/chat/page.tsx` (new `Users` icon trigger; `FAKE_CONVERSATIONS` replaced with real state sourced from `chats.ts` + `contacts.ts`).
+`client/components/contacts-popup.tsx` (new), `client/lib/chats.ts` (new, briefly named `convos.ts` before a rename), `client/components/chat-pane.tsx` (new — mockup chat UI), `client/app/chat/page.tsx` (new `Users` icon trigger; `FAKE_CONVERSATIONS` replaced with real state sourced from `chats.ts` + `contacts.ts`; mobile layout reworked so selecting a contact swaps the sidebar for `ChatPane` instead of nothing rendering).
 
 ## Why this phase exists: `listContacts()`/`getContact()` had no caller
 
@@ -144,12 +144,56 @@ The sidebar row's second line changed from the old fake shape's three separate f
 
 `time`/`unread` were dropped, not carried forward as dead fields — nothing populates them yet (no messaging exists), and keeping unused UI for data that's always empty would just be inert scaffolding.
 
+## Bug found after initial build: selecting a contact did nothing visible on mobile
+
+The right pane was `hidden flex-1 items-center justify-center md:flex` — `display: none` below the `md` breakpoint unconditionally, regardless of `selected`. On mobile, clicking a contact updated state correctly but there was nothing to show for it: reported directly ("on small screen, the message area is not opened. when a chat is selected").
+
+Fixed by making both panes' visibility depend on `selected`, not just the breakpoint — the standard list↔detail mobile pattern, confirmed directly before building (chose "selecting a contact swaps sidebar for the chat pane" over "just unhide the chat pane and stack it below"):
+
+```tsx
+// client/app/chat/page.tsx — sidebar
+<div className={`w-full flex-col ... md:flex md:w-sm ... ${selected ? "hidden" : "flex"}`}>
+
+// right pane
+<div className={`min-h-0 flex-1 flex-col ${selected ? "flex" : "hidden md:flex"}`}>
+```
+
+On desktop (`md:flex` on both), `selected` has no effect on visibility — both panes always show side-by-side, matching the original design. On mobile, exactly one of the two is visible at a time. A back arrow (see below) is what returns to the sidebar.
+
+## `ChatPane`: a UI mockup, not a wired chat screen
+
+Once the right pane could actually show something on any screen size, the placeholder text ("chat with {selected} renders here") was replaced with a real-looking mockup — explicitly scoped as UI only, not functionality: "let's create a chat ui... just a mockup... learn from the one already done in chat-old (the functionality, not the ui)."
+
+`client/app/chat-old/[username]/page.tsx` (a pre-existing, still-present WebRTC chat implementation predating this whole contacts plan) was read for its *shape*, not copied: connection status text, message bubbles aligned by `fromSelf`, a four-state status label on own messages only (`sending`/`in-transit`/`sent`/`read` — `client/lib/messages-store.ts`'s `MessageStatus`), file attachments rendered distinctly from text, an attach button + input + send button row. `ChatPane` (`client/components/chat-pane.tsx`) reproduces that same set of visual states against `MOCK_MESSAGES` (a hardcoded array covering every status and both a text and a file message in each direction) — no `useWebRtcChat`, no data channel, no real send/receive. The header's "Connected"/"Connecting…" toggle is likewise hardcoded (`const connected = true`), not read from any real connection.
+
+Visual language deliberately matches this app's actual current styling rather than `chat-old`'s (which predates `Popup`, the icon-button top-bar pattern, and the orange accent): sticky blurred header identical in structure to the sidebar's own, `rounded-full` icon buttons, message bubbles at `rounded-2xl` (softer than `chat-old`'s plain `rounded`), and the same `#ea580c` orange used for the QR-download and send buttons.
+
+**Message input is a `<textarea>`, not the original `<input>`** — chat-old's single-line input was explicitly upgraded ("multi line, with max height"): auto-grows on input up to `MAX_TEXTAREA_HEIGHT` (160px) via a manual `scrollHeight` read in `onChange`, then scrolls internally past that; Enter submits, Shift+Enter inserts a newline; border-radius matches the message bubbles (`rounded-2xl`) rather than the pill (`rounded-full`) originally used for the trigger buttons around it.
+
+**Back navigation lives inside `ChatPane`'s own header, not as a separate bar above it.** First built as a standalone `md:hidden` bar with an arrow + "Back" label sitting above the pane; corrected twice in direct succession ("back button should be inline with name. Just the arrow.") — moved into `ChatPane`'s existing header row next to the username, icon-only, still `md:hidden` (irrelevant on desktop, where both panes always show and there's nothing to "back" out of):
+
+```tsx
+export function ChatPane({ username, onBack }: { username: string; onBack?: () => void }) {
+  // ...
+  {onBack && (
+    <button onClick={onBack} aria-label="Back to chats" className="... md:hidden ...">
+      <ArrowLeft className="h-4 w-4" />
+    </button>
+  )}
+  <h1 className="text-base font-semibold ...">{username}</h1>
+```
+
+`chat/page.tsx` passes `onBack={() => setSelected(null)}` — clearing `selected` is what flips both panes' visibility back (the same conditional classes from the mobile-layout fix above), so `ChatPane` itself has no navigation logic, just a callback.
+
+**Own-message bubble color went through several rounds of live tuning**, purely aesthetic, no functional stakes: started as `bg-foreground text-background` (inherited from `chat-old`, i.e. solid black/white depending on theme) → changed to a solid `#ea580c` fill with white text (too much contrast, reverted) → `bg-orange-500` at decreasing then increasing opacity fractions (`/15` → `/8`, called "too dark" each time — opacity was being read as darkness/murkiness at low values, not lightness) → settled at `bg-orange-500/64` after being told to go the opposite direction ("higher.. like 70", then "50", then "64"). Final value: a semi-transparent orange tint over the background, dark/light text depending on theme (not white) — much closer to the peer bubble's existing subtle-background treatment than a solid brand-color fill.
+
+Header padding was also reduced across all three sections (header, message list, input form) from the sidebar-inherited `px-8` down to `px-4`, and the header's vertical padding/font-size shrunk (`py-6`→`py-3`, `text-xl`→`text-base`) after direct feedback that the copied sidebar-header sizing read as oversized for a per-conversation header.
+
 ## Explicitly not done in this phase
 
-- **No chat/message screen.** The right pane is completely unchanged — still `hidden md:flex` (desktop-only) rendering "chat with {selected} renders here." This phase only makes `selected` resolve to a real, persisted conversation instead of arbitrary transient state.
-- **`lastMessage` is never written.** The field exists on `Conversation` and renders correctly when present, but nothing in this phase (or any prior phase) ever sets it to a non-null value. Wiring real messaging is unscoped future work, likely its own plan doc given the size of that surface (WebRTC data channel wiring, `messages-store.ts`/failover-message integration already exists elsewhere in this codebase — see `client/lib/api.ts`'s `sendFailoverMessage`/`fetchFailoverMessages` — but none of it is connected to `webrtc-chats` yet).
+- **No real chat functionality.** `ChatPane` is a pure UI mockup — no `useWebRtcChat`, no signaling, no data channel, no send/receive. The form's `onSubmit` just clears the draft locally. Wiring this to `chat-old`'s actual WebRTC logic (or a rewritten version of it) is unscoped future work.
+- **`lastMessage` is never written.** The field exists on `Conversation` and renders correctly when present, but nothing in this phase (or any prior phase) ever sets it to a non-null value — the sidebar always shows "No messages yet" for now. Wiring real messaging is unscoped future work, likely its own plan doc given the size of that surface (WebRTC data channel wiring, `messages-store.ts`/failover-message integration already exists in `chat-old` and `client/lib/api.ts`'s `sendFailoverMessage`/`fetchFailoverMessages`, but none of it is connected to `webrtc-chats` or `ChatPane` yet).
 - **No delete/leave-conversation action.** Once created via `getOrCreateConversation`, a conversation row has no UI to remove it.
-- **No mobile view for the selected chat.** The right pane's `hidden md:flex` means selecting a contact on a narrow viewport updates `selected` and the sidebar highlight, but there is still nothing to actually show — same limitation the sidebar/right-pane split already had before this phase, not introduced by it.
 - **`ContactsPopup`'s search has no debounce/highlighting** — plain synchronous filter on every keystroke, fine at the scale a personal contact list realistically reaches.
 
 ## Verification
@@ -161,4 +205,7 @@ The sidebar row's second line changed from the old fake shape's three separate f
 5. Close and reopen `/chat` (simulating a fresh mount) — confirm the conversation still appears in the sidebar without needing to re-select the contact (`listConversations` correctly reads the persisted row).
 6. Click the same contact a second time from the Contacts popup — confirm no duplicate row appears in the sidebar (`getOrCreateConversation`'s idempotency).
 7. With zero conversations (fresh account, no contacts selected yet), confirm the "No chats yet" empty state still renders correctly.
-8. `bunx tsc --noEmit` clean in `client/` (run from within the directory).
+8. At a mobile viewport width, select a contact — confirm the sidebar hides and `ChatPane` shows full-width with the mock messages, connection status, and input row; click the back arrow next to the username — confirm it returns to the sidebar with the conversation still selected/highlighted in the list.
+9. At a desktop viewport width, select a contact — confirm both the sidebar and `ChatPane` are visible side-by-side simultaneously, and no back arrow is shown.
+10. In `ChatPane`, type a multi-line message (or a long single line) — confirm the textarea grows with content up to the max height, then scrolls internally; press Shift+Enter — confirm it inserts a newline instead of submitting; press Enter alone — confirm it submits (clears the draft).
+11. `bunx tsc --noEmit` clean in `client/` (run from within the directory).

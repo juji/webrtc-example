@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { auth } from './routes/auth'
 import { messagesRoute } from './routes/messages'
+import { pushRoute } from './routes/push'
 import { turn } from './routes/turn'
 import { usersRoute } from './routes/users'
 import { signaling, websocket } from './signaling'
@@ -17,6 +18,7 @@ app.route('/users', usersRoute)
 app.route('/turn', turn)
 app.route('/signaling', signaling)
 app.route('/messages', messagesRoute)
+app.route('/push', pushRoute)
 
 async function ensureAttachmentsBucket() {
   try {

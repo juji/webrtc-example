@@ -9,6 +9,15 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  id: uuid('id').primaryKey().$defaultFn(uuidv7),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  endpoint: text('endpoint').notNull().unique(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
 export const messages = pgTable('messages', {
   id: uuid('id').primaryKey().$defaultFn(uuidv7),
   clientId: text('client_id').notNull(),

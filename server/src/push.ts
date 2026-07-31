@@ -1,0 +1,23 @@
+import webPush from 'web-push'
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY ?? ''
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY ?? ''
+
+webPush.setVapidDetails('mailto:admin@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
+
+export { VAPID_PUBLIC_KEY }
+
+export type PushSubscriptionKeys = { endpoint: string; p256dh: string; auth: string }
+
+export async function sendPush(
+  subscription: PushSubscriptionKeys,
+  payload: { title: string; body: string; url?: string },
+) {
+  await webPush.sendNotification(
+    {
+      endpoint: subscription.endpoint,
+      keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+    },
+    JSON.stringify(payload),
+  )
+}

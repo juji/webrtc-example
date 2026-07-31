@@ -1,10 +1,12 @@
 "use client";
 
-import { LogOut, MessageCircle, QrCode } from "lucide-react";
+import { Bell, LogOut, MessageCircle, QrCode } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Popup } from "@/components/popup";
 import { QrCodePopup } from "@/components/qr-code-popup";
+import { sendTestPush } from "@/lib/api";
+import { enablePushForUser } from "@/lib/push";
 import { useSessionStore } from "@/lib/session-store";
 import { useRequireSession } from "@/lib/use-require-session";
 
@@ -24,6 +26,12 @@ export default function MockupPage() {
     router.push("/");
   }
 
+  async function handleTestPush() {
+    if (!user) return;
+    await enablePushForUser(user.username);
+    await sendTestPush(user.username);
+  }
+
   if (!user) return null;
 
   return (
@@ -31,13 +39,22 @@ export default function MockupPage() {
       <div className="flex w-full flex-col overflow-y-auto md:w-sm md:shrink-0 md:border-r md:border-black/10 md:dark:border-white/10">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-background/30 px-8 py-6 shadow-xl backdrop-blur-lg dark:border-white/10">
           <h1 className="text-xl font-semibold text-black dark:text-zinc-50">Chats</h1>
-          <button
-            onClick={() => setShowQr(true)}
-            aria-label="Show my QR code"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
-          >
-            <QrCode className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleTestPush}
+              aria-label="Send a test push notification"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setShowQr(true)}
+              aria-label="Show my QR code"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
+            >
+              <QrCode className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <ul className="flex flex-col gap-1 py-1">

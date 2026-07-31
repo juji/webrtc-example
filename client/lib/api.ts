@@ -68,6 +68,40 @@ export async function fetchUserById(id: string): Promise<PublicUser | null> {
   return user;
 }
 
+export async function fetchVapidPublicKey(): Promise<string> {
+  const res = await fetch(`${SERVER_URL}/push/vapid-public-key`);
+  const { publicKey } = await res.json();
+  return publicKey;
+}
+
+export async function subscribeToPush(
+  username: string,
+  subscription: { endpoint: string; p256dh: string; auth: string },
+): Promise<void> {
+  await fetch(`${SERVER_URL}/push/subscribe`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, ...subscription }),
+  });
+}
+
+export async function unsubscribeFromPush(endpoint: string): Promise<void> {
+  await fetch(`${SERVER_URL}/push/unsubscribe`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ endpoint }),
+  });
+}
+
+export async function sendTestPush(username: string): Promise<void> {
+  const res = await fetch(`${SERVER_URL}/push/test`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error ?? "test push failed");
+}
+
 export async function sendFailoverMessage(args: {
   clientId: string;
   fromUsername: string;

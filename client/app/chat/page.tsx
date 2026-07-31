@@ -1,9 +1,11 @@
 "use client";
 
-import { LogOut, MessageCircle } from "lucide-react";
+import { Download, LogOut, MessageCircle, QrCode } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { Popup } from "@/components/popup";
+import { fingerprint, loadKeys } from "@/lib/keys";
 import { useSessionStore } from "@/lib/session-store";
 import { useRequireSession } from "@/lib/use-require-session";
 
@@ -16,11 +18,26 @@ export default function MockupPage() {
   const logout = useSessionStore((s) => s.logout);
   const [selected, setSelected] = useState<string | null>(null);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   function handleLogout() {
     logout();
     router.push("/");
   }
+
+  useEffect(() => {
+    if (!showQr || !user) return;
+    loadKeys(user.username).then(async (keys) => {
+      if (!keys) return;
+      const payload = JSON.stringify({
+        id: user.id,
+        username: user.username,
+        keyFingerprint: await fingerprint(keys.kemPublicKey),
+      });
+      setQrDataUrl(await QRCode.toDataURL(payload));
+    });
+  }, [showQr, user]);
 
   if (!user) return null;
 
@@ -29,6 +46,13 @@ export default function MockupPage() {
       <div className="flex w-full flex-col overflow-y-auto md:w-sm md:shrink-0 md:border-r md:border-black/10 md:dark:border-white/10">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-background/30 px-8 py-6 shadow-xl backdrop-blur-lg dark:border-white/10">
           <h1 className="text-xl font-semibold text-black dark:text-zinc-50">Chats</h1>
+          <button
+            onClick={() => setShowQr(true)}
+            aria-label="Show my QR code"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
+          >
+            <QrCode className="h-4 w-4" />
+          </button>
         </div>
 
         <ul className="flex flex-col gap-1 py-1">
@@ -96,6 +120,39 @@ export default function MockupPage() {
         confirmLabel="Log out"
       >
         <p className="text-sm text-zinc-600 dark:text-zinc-400">Are you sure you want to log out?</p>
+      </Popup>
+
+      <Popup
+        open={showQr}
+        onClose={() => setShowQr(false)}
+        title="My QR code"
+        buttons={
+          qrDataUrl
+            ? [
+                {
+                  label: "Download",
+                  onClick: () => {
+                    const a = document.createElement("a");
+                    a.href = qrDataUrl;
+                    a.download = `${user.username}-qr-code.png`;
+                    a.click();
+                  },
+                  bgColor: "#ea580c",
+                  fgColor: "#ffffff",
+                },
+              ]
+            : []
+        }
+      >
+        <div className="flex flex-col items-center gap-3">
+          {qrDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={qrDataUrl} alt="Your contact QR code" className="aspect-square w-full max-w-sm" />
+          ) : (
+            <div className="aspect-square w-full max-w-sm animate-pulse rounded-lg bg-black/5 dark:bg-white/5" />
+          )}
+          <p className="text-sm text-zinc-500">Let someone scan this to add you as a contact.</p>
+        </div>
       </Popup>
     </div>
   );

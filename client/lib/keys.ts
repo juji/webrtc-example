@@ -14,6 +14,13 @@ export function fromBase64(b64: string): Uint8Array {
   return bytes;
 }
 
+// Short, QR-friendly stand-in for a public key: the ML-KEM-768 key itself
+// (~1184 bytes) is too large to encode directly into a scannable QR code.
+export async function fingerprint(publicKey: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(publicKey).buffer as ArrayBuffer);
+  return toBase64(new Uint8Array(digest)).slice(0, 16);
+}
+
 const DB_NAME = "webrtc-keys";
 const STORE_NAME = "keys";
 

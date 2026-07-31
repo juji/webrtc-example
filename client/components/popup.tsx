@@ -90,32 +90,40 @@ export function Popup({
 
         <div className="flex-1 overflow-y-auto px-6 py-6 text-black dark:text-zinc-50">{children}</div>
 
-        <div className="flex items-center justify-between gap-2 bg-black/2 px-6 py-4 dark:bg-white/3">
-          <button
-            onClick={footerButtons[0].onClick}
-            style={
-              footerButtons[0].bgColor || footerButtons[0].fgColor
-                ? { backgroundColor: footerButtons[0].bgColor, color: footerButtons[0].fgColor }
-                : undefined
-            }
-            className="rounded-full px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 dark:text-zinc-50"
-          >
-            {footerButtons[0].label}
-          </button>
-
-          <div className="flex items-center gap-2">
-            {footerButtons.slice(1).map((b) => (
+        {footerButtons.length > 0 && (
+          <div className="flex items-center justify-between gap-2 bg-black/2 px-6 py-4 dark:bg-white/3">
+            {footerButtons.length > 1 ? (
               <button
-                key={b.label}
-                onClick={b.onClick}
-                style={b.bgColor || b.fgColor ? { backgroundColor: b.bgColor, color: b.fgColor } : undefined}
+                onClick={footerButtons[0].onClick}
+                style={
+                  footerButtons[0].bgColor || footerButtons[0].fgColor
+                    ? { backgroundColor: footerButtons[0].bgColor, color: footerButtons[0].fgColor }
+                    : undefined
+                }
                 className="rounded-full px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 dark:text-zinc-50"
               >
-                {b.label}
+                {footerButtons[0].label}
               </button>
-            ))}
+            ) : (
+              <div />
+            )}
+
+            <div className={`flex items-center gap-2 ${footerButtons.length === 1 ? "w-full" : ""}`}>
+              {(footerButtons.length > 1 ? footerButtons.slice(1) : footerButtons).map((b) => (
+                <button
+                  key={b.label}
+                  onClick={b.onClick}
+                  style={b.bgColor || b.fgColor ? { backgroundColor: b.bgColor, color: b.fgColor } : undefined}
+                  className={`rounded-full px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 dark:text-zinc-50 ${
+                    footerButtons.length === 1 ? "w-full" : ""
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

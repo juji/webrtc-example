@@ -48,8 +48,8 @@ Run `bun run db:push` (existing `server/package.json` script, drizzle-kit) after
 `client/lib/keys.ts` (new):
 
 ```ts
-import { ml_dsa65 } from "@noble/post-quantum/ml-dsa";
-import { ml_kem768 } from "@noble/post-quantum/ml-kem";
+import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
+import { ml_kem768 } from "@noble/post-quantum/ml-kem.js";
 
 const DB_NAME = "webrtc-keys";
 const STORE_NAME = "keys";

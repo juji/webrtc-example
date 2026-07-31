@@ -15,7 +15,7 @@ Sending a public key to prove identity proves nothing — public keys are, by de
 ```ts
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
-import { ml_dsa65 } from '@noble/post-quantum/ml-dsa'
+import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js'
 import { db } from '../db'
 import { users } from '../db/schema'
 
@@ -75,9 +75,9 @@ auth.post('/login', async (c) => {
   if (!user || !signature) return c.json({ error: 'invalid login' }, 401)
 
   const valid = ml_dsa65.verify(
-    fromBase64(user.mlDsaPublicKey),
-    new TextEncoder().encode(pending.nonce),
     fromBase64(signature),
+    new TextEncoder().encode(pending.nonce),
+    fromBase64(user.mlDsaPublicKey),
   )
   if (!valid) return c.json({ error: 'invalid signature' }, 401)
 
@@ -104,7 +104,7 @@ export async function login(username: string): Promise<User> {
   if (!challengeRes.ok) throw new Error((await challengeRes.json()).error ?? "challenge failed");
   const { nonce } = await challengeRes.json();
 
-  const signature = ml_dsa65.sign(keys.dsaSecretKey, new TextEncoder().encode(nonce));
+  const signature = ml_dsa65.sign(new TextEncoder().encode(nonce), keys.dsaSecretKey);
 
   const loginRes = await fetch(`${SERVER_URL}/auth/login`, {
     method: "POST",

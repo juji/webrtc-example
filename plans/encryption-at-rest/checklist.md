@@ -27,16 +27,16 @@ Scaling this from "auth + encrypted-at-rest storage" to a genuinely trustworthy 
 ## Phase 1 — Schema + key generation on registration
 
 detail: [phase-1-schema-and-keygen.md](phase-1-schema-and-keygen.md)
-- [ ] **`users` table**: add columns for both public keys (ML-DSA verify key, ML-KEM encryption key)
-- [ ] **Client-side keypair generation at registration** — both keypairs generated in-browser via `@noble/post-quantum`, public halves sent to the server, private halves persisted locally and never transmitted
-- [ ] **`messages` table**: replace plaintext `text` with the encrypted-row shape (KEM ciphertext, AES-GCM ciphertext, nonce/IV, auth tag)
+- [x] **`users` table**: add columns for both public keys (ML-DSA verify key, ML-KEM encryption key)
+- [x] **Client-side keypair generation at registration** — both keypairs generated in-browser via `@noble/post-quantum`, public halves sent to the server, private halves persisted locally and never transmitted
+- [ ] **`messages` table**: replace plaintext `text` with the encrypted-row shape (KEM ciphertext, AES-GCM ciphertext, nonce/IV, auth tag) — deferred to Phase 3, not done in this pass (scoped down deliberately to land the login mechanism first)
 
 ## Phase 2 — Challenge-based login
 
 detail: [phase-2-challenge-login.md](phase-2-challenge-login.md)
-- [ ] **`POST /auth/challenge`** — server issues a random nonce for a given username, short-lived
-- [ ] **`POST /auth/login` rewritten** — client signs the nonce with its ML-DSA private key; server verifies against the stored public key instead of trusting the username alone
-- [ ] **Client-side**: read the locally-stored ML-DSA private key on app load, use it to complete the challenge automatically when a session already exists on this device — no private key ever leaves the browser
+- [x] **`POST /auth/challenge`** — server issues a random nonce for a given username, short-lived
+- [x] **`POST /auth/login` rewritten** — client signs the nonce with its ML-DSA private key; server verifies against the stored public key instead of trusting the username alone
+- [x] **Client-side**: read the locally-stored ML-DSA private key on app load, use it to complete the challenge automatically when a session already exists on this device — no private key ever leaves the browser
 
 ## Phase 3 — Message encryption / decryption
 

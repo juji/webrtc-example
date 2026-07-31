@@ -1,3 +1,5 @@
+import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
+import { generateAndStoreKeys, loadKeys, toBase64 } from "./keys";
 import type { MessageRow } from "./messages-store";
 
 export const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:4000";
@@ -9,15 +11,52 @@ export type User = {
   createdAt: string;
 };
 
-export async function loginOrRegister(username: string): Promise<User> {
-  const res = await fetch(`${SERVER_URL}/auth/login`, {
+export async function register(username: string): Promise<User> {
+  const { dsaPublicKey, kemPublicKey } = await generateAndStoreKeys(username);
+  const res = await fetch(`${SERVER_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username,
+      mlDsaPublicKey: toBase64(dsaPublicKey),
+      mlKemPublicKey: toBase64(kemPublicKey),
+    }),
+  });
+  if (res.status === 409) {
+    throw new Error("this username exists but isn't registered on this device");
+  }
+  if (!res.ok) throw new Error((await res.json()).error ?? "registration failed");
+  const { user } = await res.json();
+  return user;
+}
+
+export async function login(username: string): Promise<User> {
+  const keys = await loadKeys(username);
+  if (!keys) throw new Error("no local key for this username on this device");
+
+  const challengeRes = await fetch(`${SERVER_URL}/auth/challenge`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username }),
   });
-  if (!res.ok) throw new Error((await res.json()).error ?? "login failed");
-  const { user } = await res.json();
+  if (!challengeRes.ok) throw new Error((await challengeRes.json()).error ?? "challenge failed");
+  const { nonce } = await challengeRes.json();
+
+  const signature = ml_dsa65.sign(new TextEncoder().encode(nonce), keys.dsaSecretKey);
+
+  const loginRes = await fetch(`${SERVER_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, signature: toBase64(signature) }),
+  });
+  if (!loginRes.ok) throw new Error((await loginRes.json()).error ?? "login failed");
+  const { user } = await loginRes.json();
   return user;
+}
+
+export async function loginOrRegister(username: string): Promise<User> {
+  const existingKeys = await loadKeys(username);
+  return existingKeys ? login(username) : register(username);
 }
 
 export async function searchUsers(query: string, exclude: string): Promise<User[]> {

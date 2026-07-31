@@ -7,7 +7,8 @@
   ],
   "scripts": {
     "dev": "docker compose up -d && trap 'docker compose down' EXIT && bun run --filter '*' dev",
-    "test:e2e": "bun run e2e/chat.test.mjs && bun run e2e/failover.test.mjs"
+    "test:e2e": "bun run e2e/chat.test.mjs && bun run e2e/failover.test.mjs",
+    "wipe": "docker compose down -v"
   },
   "devDependencies": {
     "playwright": "^1.62.0",

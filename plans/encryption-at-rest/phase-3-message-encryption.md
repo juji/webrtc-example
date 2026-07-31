@@ -15,7 +15,7 @@ What this phase actually changes: `dispatchTextViaServer` (the function `use-web
 `client/lib/crypto.ts` (new):
 
 ```ts
-import { ml_kem768 } from "@noble/post-quantum/ml-kem";
+import { ml_kem768 } from "@noble/post-quantum/ml-kem.js";
 import { loadKeys } from "./keys";
 
 export type EncryptedPayload = { kemCiphertext: string; cipherIv: string; cipherText: string };

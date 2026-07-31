@@ -13,6 +13,7 @@
       "name": "client",
       "version": "0.1.0",
       "dependencies": {
+        "@noble/post-quantum": "^0.6.1",
         "next": "16.2.12",
         "react": "19.2.4",
         "react-dom": "19.2.4",
@@ -34,6 +35,7 @@
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1098.0",
         "@aws-sdk/s3-request-presigner": "^3.1098.0",
+        "@noble/post-quantum": "^0.6.1",
         "drizzle-orm": "^0.45.2",
         "hono": "^4.12.32",
         "postgres": "^3.4.9",
@@ -295,6 +297,14 @@
     "@next/swc-win32-arm64-msvc": ["@next/swc-win32-arm64-msvc@16.2.12", "", { "os": "win32", "cpu": "arm64" }, "sha512-X6hzsOUJac/e7AWSbn9gQ9nzHld1xWP5iyjHpYWvud8pufB679O1xg4JDyKr8Xd69Jvd+kM2Der6uftiZCmjYA=="],
 
     "@next/swc-win32-x64-msvc": ["@next/swc-win32-x64-msvc@16.2.12", "", { "os": "win32", "cpu": "x64" }, "sha512-F6fakeHuFTLOPt0bslQJdf+xtT+WIP9DVn/m4y1w1mRnVPyh3D/cNvzlRkxM444xfm+IvvYNSOrKiA2CDJ0Uxw=="],
+
+    "@noble/ciphers": ["@noble/ciphers@2.2.0", "", {}, "sha512-Z6pjIZ/8IJcCGzb2S/0Px5J81yij85xASuk1teLNeg75bfT07MV3a/O2Mtn1I2se43k3lkVEcFaR10N4cgQcZA=="],
+
+    "@noble/curves": ["@noble/curves@2.2.0", "", { "dependencies": { "@noble/hashes": "2.2.0" } }, "sha512-T/BoHgFXirb0ENSPBquzX0rcjXeM6Lo892a2jlYJkqk83LqZx0l1Of7DzlKJ6jkpvMrkHSnAcgb5JegL8SeIkQ=="],
+
+    "@noble/hashes": ["@noble/hashes@2.2.0", "", {}, "sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg=="],
+
+    "@noble/post-quantum": ["@noble/post-quantum@0.6.1", "", { "dependencies": { "@noble/ciphers": "~2.2.0", "@noble/curves": "~2.2.0", "@noble/hashes": "~2.2.0" } }, "sha512-+pormrDZwjRw05U8ADK4JpHejo87+gBd+muRBB/ozztH5yhDLMDF4jHQWN3NQQAsu1zBNPWTG0ZwVI0CR29H0A=="],
 
     "@nodelib/fs.scandir": ["@nodelib/fs.scandir@2.1.5", "", { "dependencies": { "@nodelib/fs.stat": "2.0.5", "run-parallel": "^1.1.9" } }, "sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g=="],
 

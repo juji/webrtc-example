@@ -113,6 +113,19 @@ export async function sendContactRequest(fromUsername: string, toId: string): Pr
 
 export type ContactRequest = { id: string; fromUsername: string; createdAt: string };
 
+export type AcceptedContact = { id: string; username: string; mlKemPublicKey: string };
+
+export async function acceptContactRequest(requestId: string, username: string): Promise<AcceptedContact> {
+  const res = await fetch(`${SERVER_URL}/contacts/requests/${requestId}/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error ?? "failed to accept contact request");
+  const { contact } = await res.json();
+  return contact;
+}
+
 export async function fetchContactRequests(username: string): Promise<ContactRequest[]> {
   const res = await fetch(`${SERVER_URL}/contacts/requests?username=${encodeURIComponent(username)}`);
   const { requests } = await res.json();

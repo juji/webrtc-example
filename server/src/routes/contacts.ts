@@ -61,3 +61,40 @@ contactsRoute.get('/requests', async (c) => {
 
   return c.json({ requests: rows })
 })
+
+// Accepting is intentionally the only state change this endpoint makes.
+// The server never persists the resulting contact relationship (see
+// plans/contacts' Context) — it marks the request accepted (so re-requesting
+// doesn't spam a new pending row), notifies the original requester, and
+// hands the accepting client the requester's public key so it can write its
+// own local contact entry. Nothing about a chat/conversation happens here.
+contactsRoute.post('/requests/:id/accept', async (c) => {
+  const id = c.req.param('id')
+  const { username } = await c.req.json<{ username?: string }>()
+  if (!username) return c.json({ error: 'username is required' }, 400)
+
+  const [user] = await db.select().from(users).where(eq(users.username, username))
+  if (!user) return c.json({ error: 'unknown username' }, 404)
+
+  const [request] = await db
+    .select()
+    .from(contactRequests)
+    .where(and(eq(contactRequests.id, id), eq(contactRequests.toUserId, user.id)))
+  if (!request) return c.json({ error: 'request not found' }, 404)
+  if (request.status !== 'pending') return c.json({ error: 'request is not pending' }, 409)
+
+  const [fromUser] = await db.select().from(users).where(eq(users.id, request.fromUserId))
+  if (!fromUser) return c.json({ error: 'requester no longer exists' }, 404)
+
+  await db.update(contactRequests).set({ status: 'accepted' }).where(eq(contactRequests.id, id))
+
+  await notifyUserByPush(fromUser.id, {
+    title: 'Primssg',
+    body: `${user.username} accepted your contact request`,
+    url: '/chat',
+  })
+
+  return c.json({
+    contact: { id: fromUser.id, username: fromUser.username, mlKemPublicKey: fromUser.mlKemPublicKey },
+  })
+})

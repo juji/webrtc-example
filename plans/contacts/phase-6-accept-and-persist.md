@@ -2,7 +2,7 @@
 
 ## Files
 
-`client/lib/contacts.ts` (new; later gained `syncAcceptedContact`), `server/src/routes/contacts.ts` (added `POST /requests/:id/accept`, `POST /request` now requires `keyFingerprint`; later rewritten around `notifications`; accept push's `url` fixed to deep-link), `server/src/db/schema.ts` (`contact_requests` gained `fromScannedFingerprint`; later replaced by `notifications`), `server/src/push.ts` (`PushPayload` gained optional `data`), `client/lib/api.ts` (added `acceptContactRequest`/`AcceptedContact`, `sendContactRequest` now takes `keyFingerprint`; later `ContactRequest` replaced by `ContactRequestNotification`), `client/components/qr-code-popup.tsx` (passes `scanned.keyFingerprint` through to `sendContactRequest`), `client/components/requests-popup.tsx` (Accept button wired; later rewritten as a flat notification list, briefly tried as Received/Sent tabs and reverted), `client/public/sw.js` (`push` handler broadcasts structured `data` to open tabs), `client/app/service-worker-registration.tsx` (re-verifies and persists on a `contact-accepted` push; later delegates to `syncAcceptedContact`), `client/app/chat/page.tsx` (notification count badge — preamble, not the accept flow itself; later badge counts only pending-incoming; `?open=requests` renamed `?open=notifications`).
+`client/lib/contacts.ts` (new; later gained `syncAcceptedContact`), `server/src/routes/contacts.ts` (added `POST /requests/:id/accept`, `POST /request` now requires `keyFingerprint`; later rewritten around `notifications`; accept push's `url` fixed to deep-link; `GET` feed handler later moved out to `notifications.ts`), `server/src/routes/notifications.ts` (new — `GET /notifications`, extracted from `contacts.ts`), `server/src/db/schema.ts` (`contact_requests` gained `fromScannedFingerprint`; later replaced by `notifications`), `server/src/push.ts` (`PushPayload` gained optional `data`), `server/src/index.ts` (mounts `notificationsRoute` at `/notifications`), `client/lib/api.ts` (added `acceptContactRequest`/`AcceptedContact`, `sendContactRequest` now takes `keyFingerprint`; later `ContactRequest` replaced by `ContactRequestNotification`; `fetchContactRequests` later repointed to `/notifications`), `client/components/qr-code-popup.tsx` (passes `scanned.keyFingerprint` through to `sendContactRequest`), `client/components/requests-popup.tsx` (Accept button wired; later rewritten as a flat notification list, briefly tried as Received/Sent tabs and reverted; later gained scroll-to + highlight for a deep-linked `id`), `client/public/sw.js` (`push` handler broadcasts structured `data` to open tabs), `client/app/service-worker-registration.tsx` (re-verifies and persists on a `contact-accepted` push; later delegates to `syncAcceptedContact`), `client/app/chat/page.tsx` (notification count badge — preamble, not the accept flow itself; later badge counts only pending-incoming; `?open=requests` renamed `?open=notifications`; later gained `&id=` passthrough for the highlighted row).
 
 ## The core design decision: contacts live only in IndexedDB, never on the server
 
@@ -187,7 +187,7 @@ await db.update(notifications).set({ data: { ...outgoingRow.data, pairId: incomi
 
 `scannedFingerprint` is stored on **both** rows now, not just the incoming one — BB already has it at send time (it's what `qr-code-popup.tsx` scanned), so there's no reason BB's own row shouldn't carry it too; it's what lets `RequestsPopup` re-verify and sync a contact directly from BB's own notification list, independent of whether a push ever arrived.
 
-`GET /contacts/requests?username=` now returns **every** `contact_request` notification for that user, both directions, any status — not just pending-incoming:
+`GET /contacts/requests?username=` (later moved to `GET /notifications?username=` — see below) now returns **every** `contact_request` notification for that user, both directions, any status — not just pending-incoming:
 
 ```ts
 const rows = await db.select().from(notifications)
@@ -300,6 +300,78 @@ url: '/chat?open=notifications',
 
 Purely a naming fix — no behavior change, no schema/data involved. `OpenRequestsFromQuery`'s own function/component name was left as-is (still reads as "opens the requests popup," which is accurate — it's the popup component's name, `RequestsPopup`, that didn't get renamed either, only its rendered title).
 
+## Deep-link a specific notification: `&id=`, scroll-into-view, and a highlight
+
+With the flat list holding up to dozens of rows, a push click landing on `/chat?open=notifications` opened the popup but left the user to scroll and find the relevant row themselves — no different from opening the Bell manually. Fixed by carrying the specific row's own id through the same deep link and having the popup scroll to and highlight it.
+
+Both push URLs gained `&id=<notificationId>` — critically, **each side's own row id**, not the shared `pairId`:
+
+```ts
+// server/src/routes/contacts.ts — POST /contacts/request
+url: `/chat?open=notifications&id=${incoming.id}`,   // AA's own incoming row
+
+// POST /contacts/requests/:id/accept
+url: `/chat?open=notifications&id=${data.pairId}`,   // BB's own outgoing row (pairId *is* BB's row id, from AA's perspective)
+```
+
+`OpenRequestsFromQuery` (`client/app/chat/page.tsx`) reads `?id=` alongside `?open=notifications` and passes it down as `highlightId`:
+
+```tsx
+function OpenRequestsFromQuery({ onOpenRequests }: { onOpenRequests: (highlightId: string | null) => void }) {
+  useEffect(() => {
+    if (searchParams.get("open") === "notifications") {
+      onOpenRequests(searchParams.get("id"));
+      router.replace("/chat");
+    }
+  }, [searchParams, router, onOpenRequests]);
+  return null;
+}
+```
+
+A manual Bell click clears it (`setHighlightNotificationId(null)`) so a stale highlight from a previous deep link doesn't linger into a normal open.
+
+`RequestsPopup` scrolls the matching row into view once the fetch resolves, and renders it with an orange border/tint (matching the app's existing orange accent) instead of the default border:
+
+```tsx
+// client/components/requests-popup.tsx
+const highlightRef = useRef<HTMLLIElement>(null);
+
+useEffect(() => {
+  if (!highlightId || notifications.length === 0) return;
+  highlightRef.current?.scrollIntoView({ block: "center" });
+}, [highlightId, notifications]);
+```
+
+```tsx
+<li
+  ref={n.id === highlightId ? highlightRef : undefined}
+  className={`... ${n.id === highlightId ? "border-orange-500 bg-orange-500/10" : "border-black/10 dark:border-white/10"}`}
+>
+```
+
+`block: "center"` (not `"start"` or the default `"nearest"`) is what actually centers the row in the popup's scrollable area rather than just nudging it into the visible edge — matters more here than in a short list, since the row could be anywhere among dozens.
+
+## `GET /contacts/requests` extracted to its own top-level `notifications.ts` route
+
+Renaming the query param and the popup's title to "Notifications" didn't rename the actual HTTP path serving it — `GET /contacts/requests` stayed as-is through all of the redesign work above, which is real drift: the endpoint had become a generic notification feed in everything but its URL. Caught directly ("why does it say I don't have any notifications, even though the DB still has it?" turned out to be a separate stale-dev-server issue, but surfaced the stale route name in the process: "YOU STILL HAVE /contacts/requests!!!! NOTIFICATIONS!!!!").
+
+`POST /contacts/request` (send) and `POST /contacts/requests/:id/accept` were deliberately left alone — both are still accurately named (they're contact-request *actions*, not a notification-feed *read*), so only the `GET` handler moved. Rather than just renaming the path under the existing `/contacts` mount (which would've produced `/contacts/notifications` — still contact-request-flavored), it was pulled out into its own file and mounted at the top level:
+
+```ts
+// server/src/routes/notifications.ts (new)
+export const notificationsRoute = new Hono()
+notificationsRoute.get('/', async (c) => {
+  // same body as the old contactsRoute.get('/requests', ...)
+})
+```
+
+```ts
+// server/src/index.ts
+app.route('/notifications', notificationsRoute)
+```
+
+Final path: `GET /notifications?username=`. `contacts.ts` lost its now-unused `desc` import along with the handler (Drizzle's `orderBy(desc(...))` moved with the query into the new file). `client/lib/api.ts`'s `fetchContactRequests` now points at `${SERVER_URL}/notifications?username=...` — the exported function name itself (`fetchContactRequests`) and its return type name (`ContactRequestNotification`) were left as-is; only the URL changed, matching the same "rename the thing that actually drifted, not everything nearby" scope discipline used for the `?open=` param rename above.
+
 ## Explicitly not done in this phase
 
 - **No UI surfaces the resulting contacts list anywhere.** `listContacts()`/`getContact()` exist in `client/lib/contacts.ts` but nothing calls them yet — `/chat`'s conversation sidebar is still `FAKE_CONVERSATIONS = []`. Wiring accepted contacts into a real conversation list is separate, not-yet-scoped work.
@@ -314,13 +386,15 @@ Purely a naming fix — no behavior change, no schema/data involved. `OpenReques
 
 1. Register two users, send a contact request from one to the other's `id` including a `keyFingerprint` — confirm the response's `notification.data.scannedFingerprint` matches what was sent.
 2. Confirm `POST /contacts/request` without `keyFingerprint` is rejected with 400.
-3. `GET /contacts/requests?username=<sender>` immediately after sending — confirm an `outgoing`, `pending` row appears without needing any push (this is BB's "request is pending" notification, delivered by the send call itself).
-4. `GET /contacts/requests?username=<recipient>` — confirm the paired `incoming`, `pending` row appears, with `data.pairId` pointing at the sender's row id and vice versa.
+3. `GET /notifications?username=<sender>` immediately after sending — confirm an `outgoing`, `pending` row appears without needing any push (this is BB's "request is pending" notification, delivered by the send call itself).
+4. `GET /notifications?username=<recipient>` — confirm the paired `incoming`, `pending` row appears, with `data.pairId` pointing at the sender's row id and vice versa.
 5. `POST /contacts/requests/:id/accept` as the recipient — confirm `{ contact: { id, username, mlKemPublicKey } }` is returned matching the requester's real data.
-6. Re-fetch both users' `GET /contacts/requests` — confirm **both** paired rows flipped to `status: 'accepted'`, not just the recipient's.
+6. Re-fetch both users' `GET /notifications` — confirm **both** paired rows flipped to `status: 'accepted'`, not just the recipient's.
 7. Repeat the same accept call — confirm 409 `"request is not pending"`, not a silent success or duplicate push.
 8. As the original requester (not the recipient), attempt to accept the same request id — confirm 404 `"request not found"`.
 9. In the browser, with both AA and BB logged in (two profiles/browsers): AA accepts BB's request via `RequestsPopup` — confirm AA's IndexedDB (`webrtc-contacts`) gets a row for BB immediately, and BB's IndexedDB gets a row for AA either via the live push (`handleContactAccepted`) *or*, simulating a missed push (BB's tab closed at accept time, or notification dismissed unclicked), by BB simply opening the Notifications popup afterward — confirm BB's outgoing row now reads "accepted your contact request" and `webrtc-contacts` now has the entry, proving the sync doesn't depend on the push having been delivered.
-9b. Click both the request-sent push (AA's side) and the accept push (BB's side) — confirm both deep-link via `?open=notifications` and actually open the popup, not just navigate to a bare `/chat`.
-10. Tamper with the echoed fingerprint (e.g. temporarily change what the server sends) and confirm BB's client logs the verification failure and does *not* write a contact — proves the re-verification is actually enforced, not just present in code.
-11. `bunx tsc --noEmit` clean in both `client/` and `server/` (run from within each directory).
+10. Click both the request-sent push (AA's side) and the accept push (BB's side) — confirm both deep-link via `?open=notifications&id=...` and actually open the popup with the corresponding row scrolled into view and highlighted, not just navigate to a bare `/chat`.
+11. With a long list of notifications (enough to require scrolling within the popup), click a push whose `id` points at a row in the middle — confirm `scrollIntoView({ block: "center" })` actually centers it rather than leaving it just barely visible at an edge.
+12. Tamper with the echoed fingerprint (e.g. temporarily change what the server sends) and confirm BB's client logs the verification failure and does *not* write a contact — proves the re-verification is actually enforced, not just present in code.
+13. `curl http://localhost:4000/contacts/requests?username=...` — confirm 404 (old path genuinely gone, not just unused).
+14. `bunx tsc --noEmit` clean in both `client/` and `server/` (run from within each directory).

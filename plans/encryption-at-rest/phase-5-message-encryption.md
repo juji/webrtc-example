@@ -1,4 +1,4 @@
-# Phase 3 — Message encryption / decryption
+# Phase 5 — Message encryption / decryption
 
 ## Files
 

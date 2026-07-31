@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Popup } from "@/components/popup";
 import { useSessionStore } from "@/lib/session-store";
+import { useRequireSession } from "@/lib/use-require-session";
 
 // Fake data, no backend calls yet — wire up a real /messages/conversations endpoint.
 const FAKE_CONVERSATIONS: { username: string; lastMessage: string; time: string; unread: number }[] = [];
 
 export default function MockupPage() {
   const router = useRouter();
+  const user = useRequireSession();
   const logout = useSessionStore((s) => s.logout);
   const [selected, setSelected] = useState<string | null>(null);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
@@ -19,6 +21,8 @@ export default function MockupPage() {
     logout();
     router.push("/");
   }
+
+  if (!user) return null;
 
   return (
     <div className="flex w-full flex-1 min-h-0">

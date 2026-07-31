@@ -1,7 +1,8 @@
-import { integer, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { uuidv7 } from 'uuidv7'
 
 export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
+  id: uuid('id').primaryKey().$defaultFn(uuidv7),
   username: text('username').notNull().unique(),
   mlDsaPublicKey: text('ml_dsa_public_key').notNull(),
   mlKemPublicKey: text('ml_kem_public_key').notNull(),
@@ -9,10 +10,10 @@ export const users = pgTable('users', {
 })
 
 export const messages = pgTable('messages', {
-  id: serial('id').primaryKey(),
+  id: uuid('id').primaryKey().$defaultFn(uuidv7),
   clientId: text('client_id').notNull(),
-  fromUserId: integer('from_user_id').notNull().references(() => users.id),
-  toUserId: integer('to_user_id').notNull().references(() => users.id),
+  fromUserId: uuid('from_user_id').notNull().references(() => users.id),
+  toUserId: uuid('to_user_id').notNull().references(() => users.id),
   text: text('text'),
   fileName: text('file_name'),
   fileType: text('file_type'),

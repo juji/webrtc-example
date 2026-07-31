@@ -37,7 +37,7 @@ export const messages = pgTable('messages', {
 })
 ```
 
-`text` is dropped entirely, not kept alongside the encrypted columns — a plaintext fallback column would defeat the point. `kemCiphertext`/`cipherIv`/`cipherText` are all nullable together (a file-only message with no text body has none of them set); Phase 3 enforces "all three or none" at the application layer, not a DB constraint (matches how `fileName`/`fileType`/`fileUrl` already work as a nullable trio in the existing schema).
+`text` is dropped entirely, not kept alongside the encrypted columns — a plaintext fallback column would defeat the point. `kemCiphertext`/`cipherIv`/`cipherText` are all nullable together (a file-only message with no text body has none of them set); Phase 5 enforces "all three or none" at the application layer, not a DB constraint (matches how `fileName`/`fileType`/`fileUrl` already work as a nullable trio in the existing schema).
 
 AES-GCM's auth tag doesn't need its own column — the `@noble` / WebCrypto AES-GCM implementations append the tag to the ciphertext output automatically; `cipherText` already contains it.
 

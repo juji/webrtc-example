@@ -77,7 +77,7 @@ messagesRoute.get('/', async (c) => {
 })
 
 messagesRoute.post('/:id/ack', async (c) => {
-  const id = Number(c.req.param('id'))
+  const id = c.req.param('id')
 
   const [row] = await db
     .update(messagesTable)
@@ -105,7 +105,7 @@ messagesRoute.post('/:id/ack', async (c) => {
 })
 
 messagesRoute.delete('/:id', async (c) => {
-  const id = Number(c.req.param('id'))
+  const id = c.req.param('id')
 
   const [row] = await db.select().from(messagesTable).where(eq(messagesTable.id, id))
   if (!row) return c.json({ error: 'message not found' }, 404)

@@ -12,7 +12,7 @@ export type ChatMessage = {
 
 // Server row shape (server/src/db/schema.ts's `messages` table).
 export type MessageRow = {
-  id: number;
+  id: string;
   clientId: string;
   text: string | null;
   fileName: string | null;

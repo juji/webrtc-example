@@ -29,7 +29,7 @@ Scaling this from "auth + encrypted-at-rest storage" to a genuinely trustworthy 
 detail: [phase-1-schema-and-keygen.md](phase-1-schema-and-keygen.md)
 - [x] **`users` table**: add columns for both public keys (ML-DSA verify key, ML-KEM encryption key)
 - [x] **Client-side keypair generation at registration** — both keypairs generated in-browser via `@noble/post-quantum`, public halves sent to the server, private halves persisted locally and never transmitted
-- [ ] **`messages` table**: replace plaintext `text` with the encrypted-row shape (KEM ciphertext, AES-GCM ciphertext, nonce/IV, auth tag) — deferred to Phase 3, not done in this pass (scoped down deliberately to land the login mechanism first)
+- [ ] **`messages` table**: replace plaintext `text` with the encrypted-row shape (KEM ciphertext, AES-GCM ciphertext, nonce/IV, auth tag) — deferred to Phase 5, not done in this pass (scoped down deliberately to land the login mechanism first)
 
 ## Phase 2 — Challenge-based login
 
@@ -38,9 +38,24 @@ detail: [phase-2-challenge-login.md](phase-2-challenge-login.md)
 - [x] **`POST /auth/login` rewritten** — client signs the nonce with its ML-DSA private key; server verifies against the stored public key instead of trusting the username alone
 - [x] **Client-side**: read the locally-stored ML-DSA private key on app load, use it to complete the challenge automatically when a session already exists on this device — no private key ever leaves the browser
 
-## Phase 3 — Message encryption / decryption
+## Phase 3 — Chat UI (readiness gate for message encryption)
 
-detail: [phase-3-message-encryption.md](phase-3-message-encryption.md)
+detail: [phase-3-chat-ui.md](phase-3-chat-ui.md)
+- [x] **Two-column chat layout**: conversation-list sidebar (glassmorphic sticky header, sticky bottom logout bar, empty state) + chat pane, single-column on mobile — prototyped at `/mockup` against fake data, then promoted to the real `/chat` route
+- [x] **`/chat` is the new post-login landing page**, replacing `/users` — both redirect points in `client/app/page.tsx` updated; old real WebRTC chat page moved to `/chat-old/[username]` as reference, not routed
+- [x] **User search removed everywhere** (`searchUsers()` deleted from `client/lib/api.ts`, `/users` stripped to a bare greeting + logout) — `/users` is currently unreachable from the app, an accepted gap until real conversation data replaces it
+- [x] **Reusable `Popup` component** (`client/components/popup.tsx`): full-screen on mobile / centered+blurred-backdrop on desktop, header/content/footer slots, default Cancel-red/Confirm-green buttons, open/close animation via `tw-animate-css` — wired into the chat page's logout flow
+- [x] **Dev workflow fixes**: `dev.sh` gates `db:push` and server startup behind real Postgres/RustFS readiness checks (was racing before), `bun run wipe` added for full local volume reset
+- [ ] **Not yet wired**: real `/messages/conversations` data (sidebar still reads a hardcoded empty array), the chat pane is still placeholder text, `chat-old` not yet deleted
+
+## Phase 4 — Adding contacts
+
+detail: [phase-4-contacts.md](phase-4-contacts.md)
+- [ ] TBD
+
+## Phase 5 — Message encryption / decryption
+
+detail: [phase-5-message-encryption.md](phase-5-message-encryption.md)
 - [ ] **Sender path**: fetch recipient's ML-KEM public key, `encap()`, AES-256-GCM encrypt the message text using the shared secret, KEM ciphertext as AAD, send the encrypted bundle instead of plaintext `text`
 - [ ] **Recipient path**: `decap()` using the locally-stored ML-KEM private key to recover the shared secret, AES-GCM decrypt
 - [ ] **Verified**: a message sent through the failover path (`POST /messages`) is stored as ciphertext in Postgres — confirm by inspecting the row directly, not just through the app's own decrypt path

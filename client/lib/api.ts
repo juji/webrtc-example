@@ -6,7 +6,7 @@ export const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhos
 export const SIGNALING_URL = SERVER_URL.replace(/^http/, "ws");
 
 export type User = {
-  id: number;
+  id: string;
   username: string;
   createdAt: string;
 };
@@ -81,13 +81,13 @@ export async function fetchFailoverMessages(peer: string, self: string): Promise
   return messages;
 }
 
-export async function ackMessage(id: number): Promise<MessageRow> {
+export async function ackMessage(id: string): Promise<MessageRow> {
   const res = await fetch(`${SERVER_URL}/messages/${id}/ack`, { method: "POST" });
   const { message } = await res.json();
   return message;
 }
 
-export async function deleteMessage(id: number): Promise<void> {
+export async function deleteMessage(id: string): Promise<void> {
   await fetch(`${SERVER_URL}/messages/${id}`, { method: "DELETE" });
 }
 

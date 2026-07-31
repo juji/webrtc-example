@@ -50,7 +50,10 @@ export default function MockupPage() {
 
   useEffect(() => {
     if (!user || showRequests) return;
-    fetchContactRequests(user.username).then((requests) => setRequestCount(requests.length));
+    fetchContactRequests(user.username).then((notifications) => {
+      const pendingReceived = notifications.filter((n) => n.data.direction === "incoming" && n.status === "pending");
+      setRequestCount(pendingReceived.length);
+    });
   }, [user, showRequests]);
 
   function handleLogout() {
@@ -77,7 +80,7 @@ export default function MockupPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowRequests(true)}
-              aria-label="Contact requests"
+              aria-label="Notifications"
               className="relative flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
             >
               <Bell className="h-4 w-4" />

@@ -1,5 +1,7 @@
 # Phase 5 — Contact request + notification screen
 
+> **Superseded by Phase 6's redesign.** The `contact_requests` table described below was replaced by a generic `notifications` table (`type: 'contact_request'` being the first and only type so far), with one row per *recipient* instead of one row per handshake — see phase-6-accept-and-persist.md's "Redesign" section for why and what changed. This doc is kept as-is below because it accurately describes what Phase 5 actually built and verified at the time; treat `contactRequests`/`contact_requests` references here as historical, not current schema.
+
 ## Files
 
 `server/src/db/schema.ts` (added `contactRequests`), `server/src/routes/contacts.ts` (new), `server/src/push.ts` (extracted `notifyUserByPush()`), `server/src/routes/push.ts` (`/test` updated to use the extracted helper), `server/src/index.ts` (mounted the route), `client/lib/api.ts` (added `sendContactRequest`/`fetchContactRequests`/`ContactRequest` type), `client/components/qr-code-popup.tsx` (Send-request button on the Verified state), `client/components/requests-popup.tsx` (new — replaced an initial `/requests` route), `client/app/chat/page.tsx` (Bell button opens the popup, notification banner, `?open=requests` handling), `client/public/sw.js` (`notificationclick` reworked twice post-build), `client/app/service-worker-registration.tsx` (listens for the service worker's `postMessage`).

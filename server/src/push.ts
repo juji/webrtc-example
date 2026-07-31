@@ -11,7 +11,16 @@ webPush.setVapidDetails('mailto:admin@example.com', VAPID_PUBLIC_KEY, VAPID_PRIV
 export { VAPID_PUBLIC_KEY }
 
 export type PushSubscriptionKeys = { endpoint: string; p256dh: string; auth: string }
-export type PushPayload = { title: string; body: string; url?: string }
+export type PushPayload = {
+  title: string
+  body: string
+  url?: string
+  // Structured, event-specific data beyond the notification's visible chrome
+  // — e.g. contact-accepted pushes carry enough to let the client re-verify
+  // and persist the contact without a second round trip. Opaque to sw.js's
+  // showNotification() call; only the app's own message handling reads it.
+  data?: Record<string, unknown>
+}
 
 export async function sendPush(subscription: PushSubscriptionKeys, payload: PushPayload) {
   await webPush.sendNotification(

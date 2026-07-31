@@ -102,16 +102,32 @@ export async function sendTestPush(username: string): Promise<void> {
   if (!res.ok) throw new Error((await res.json()).error ?? "test push failed");
 }
 
-export async function sendContactRequest(fromUsername: string, toId: string): Promise<void> {
+export async function sendContactRequest(
+  fromUsername: string,
+  toId: string,
+  keyFingerprint: string,
+): Promise<void> {
   const res = await fetch(`${SERVER_URL}/contacts/request`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fromUsername, toId }),
+    body: JSON.stringify({ fromUsername, toId, keyFingerprint }),
   });
   if (!res.ok) throw new Error((await res.json()).error ?? "failed to send contact request");
 }
 
-export type ContactRequest = { id: string; fromUsername: string; createdAt: string };
+export type ContactRequestNotification = {
+  id: string;
+  type: "contact_request";
+  status: "pending" | "accepted";
+  createdAt: string;
+  data: {
+    direction: "incoming" | "outgoing";
+    otherUserId: string;
+    otherUsername: string;
+    pairId: string;
+    scannedFingerprint: string;
+  };
+};
 
 export type AcceptedContact = { id: string; username: string; mlKemPublicKey: string };
 
@@ -126,10 +142,10 @@ export async function acceptContactRequest(requestId: string, username: string):
   return contact;
 }
 
-export async function fetchContactRequests(username: string): Promise<ContactRequest[]> {
+export async function fetchContactRequests(username: string): Promise<ContactRequestNotification[]> {
   const res = await fetch(`${SERVER_URL}/contacts/requests?username=${encodeURIComponent(username)}`);
-  const { requests } = await res.json();
-  return requests;
+  const { notifications } = await res.json();
+  return notifications;
 }
 
 export async function sendFailoverMessage(args: {

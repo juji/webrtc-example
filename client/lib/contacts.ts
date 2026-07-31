@@ -1,3 +1,6 @@
+import { fetchUserById } from "./api";
+import { fingerprint, fromBase64 } from "./keys";
+
 export type Contact = {
   ownerUsername: string; // which locally-registered identity this contact belongs to
   id: string; // the contact's user id
@@ -53,5 +56,32 @@ export async function getContact(ownerUsername: string, id: string): Promise<Con
     const req = tx.objectStore(STORE_NAME).get([ownerUsername, id]);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
+  });
+}
+
+// Re-fetches the accepted contact's real public key and checks it against the
+// fingerprint scanned at request time before persisting — never trusts a push
+// payload's key claim directly. Shared by the live push handler and the
+// notification list (an accepted request seen either way goes through the
+// same verification). No-op-safe to call more than once: addContact() is a
+// keyed upsert, so re-syncing an already-known contact just overwrites it.
+export async function syncAcceptedContact(
+  ownerUsername: string,
+  contact: { id: string; username: string },
+  scannedFingerprint: string,
+): Promise<void> {
+  const found = await fetchUserById(contact.id);
+  if (!found) return;
+  const actualFingerprint = await fingerprint(fromBase64(found.mlKemPublicKey));
+  if (actualFingerprint !== scannedFingerprint) {
+    console.error("contact-accepted verification failed, not persisting:", found.username);
+    return;
+  }
+  await addContact({
+    ownerUsername,
+    id: found.id,
+    username: found.username,
+    mlKemPublicKey: found.mlKemPublicKey,
+    acceptedAt: new Date().toISOString(),
   });
 }

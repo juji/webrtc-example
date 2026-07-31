@@ -1,14 +1,20 @@
 import { Hono } from 'hono'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { db } from '../db'
-import { contactRequests, users } from '../db/schema'
+import { notifications, users } from '../db/schema'
 import { notifyUserByPush } from '../push'
 
 export const contactsRoute = new Hono()
 
 contactsRoute.post('/request', async (c) => {
-  const { fromUsername, toId } = await c.req.json<{ fromUsername?: string; toId?: string }>()
-  if (!fromUsername || !toId) return c.json({ error: 'fromUsername and toId are required' }, 400)
+  const { fromUsername, toId, keyFingerprint } = await c.req.json<{
+    fromUsername?: string
+    toId?: string
+    keyFingerprint?: string
+  }>()
+  if (!fromUsername || !toId || !keyFingerprint) {
+    return c.json({ error: 'fromUsername, toId and keyFingerprint are required' }, 400)
+  }
 
   const [fromUser] = await db.select().from(users).where(eq(users.username, fromUsername))
   if (!fromUser) return c.json({ error: 'unknown fromUsername' }, 404)
@@ -18,19 +24,57 @@ contactsRoute.post('/request', async (c) => {
 
   if (fromUser.id === toUser.id) return c.json({ error: 'cannot request yourself' }, 400)
 
-  const [existing] = await db
+  const [existingIncoming] = await db
     .select()
-    .from(contactRequests)
-    .where(and(eq(contactRequests.fromUserId, fromUser.id), eq(contactRequests.toUserId, toUser.id)))
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, toUser.id),
+        eq(notifications.type, 'contact_request'),
+        eq(notifications.status, 'pending'),
+      ),
+    )
 
-  const request =
-    existing ??
-    (
-      await db
-        .insert(contactRequests)
-        .values({ fromUserId: fromUser.id, toUserId: toUser.id })
-        .returning()
-    )[0]
+  let incoming = existingIncoming
+  if (!incoming || (incoming.data as { otherUserId?: string }).otherUserId !== fromUser.id) {
+    // Two rows for one handshake: one each side can see in their own
+    // notification feed, linked by pairId so accepting one updates the other.
+    const [outgoingRow] = await db
+      .insert(notifications)
+      .values({
+        userId: fromUser.id,
+        type: 'contact_request',
+        data: {
+          direction: 'outgoing',
+          otherUserId: toUser.id,
+          otherUsername: toUser.username,
+          scannedFingerprint: keyFingerprint,
+        },
+      })
+      .returning()
+
+    const [incomingRow] = await db
+      .insert(notifications)
+      .values({
+        userId: toUser.id,
+        type: 'contact_request',
+        data: {
+          direction: 'incoming',
+          otherUserId: fromUser.id,
+          otherUsername: fromUser.username,
+          pairId: outgoingRow.id,
+          scannedFingerprint: keyFingerprint,
+        },
+      })
+      .returning()
+
+    await db
+      .update(notifications)
+      .set({ data: { ...(outgoingRow.data as object), pairId: incomingRow.id } })
+      .where(eq(notifications.id, outgoingRow.id))
+
+    incoming = incomingRow
+  }
 
   await notifyUserByPush(toUser.id, {
     title: 'Primssg',
@@ -38,10 +82,11 @@ contactsRoute.post('/request', async (c) => {
     url: '/chat?open=requests',
   })
 
-  return c.json({ request })
+  return c.json({ notification: incoming })
 })
 
-// Pending incoming requests for a user — what the requests popup renders.
+// Full notification feed for a user — both directions, any status. What the
+// Bell popup renders.
 contactsRoute.get('/requests', async (c) => {
   const username = c.req.query('username')
   if (!username) return c.json({ error: 'username is required' }, 400)
@@ -50,24 +95,21 @@ contactsRoute.get('/requests', async (c) => {
   if (!user) return c.json({ error: 'unknown username' }, 404)
 
   const rows = await db
-    .select({
-      id: contactRequests.id,
-      fromUsername: users.username,
-      createdAt: contactRequests.createdAt,
-    })
-    .from(contactRequests)
-    .innerJoin(users, eq(users.id, contactRequests.fromUserId))
-    .where(and(eq(contactRequests.toUserId, user.id), eq(contactRequests.status, 'pending')))
+    .select()
+    .from(notifications)
+    .where(and(eq(notifications.userId, user.id), eq(notifications.type, 'contact_request')))
+    .orderBy(desc(notifications.createdAt))
 
-  return c.json({ requests: rows })
+  return c.json({ notifications: rows })
 })
 
-// Accepting is intentionally the only state change this endpoint makes.
-// The server never persists the resulting contact relationship (see
-// plans/contacts' Context) — it marks the request accepted (so re-requesting
-// doesn't spam a new pending row), notifies the original requester, and
-// hands the accepting client the requester's public key so it can write its
-// own local contact entry. Nothing about a chat/conversation happens here.
+// Accepting updates both sides of the pair: the recipient's own row (so a
+// second accept 409s) and the sender's row (so the sender's client sees
+// status flip to accepted and can sync the contact locally). The server
+// never persists the resulting contact relationship itself (see
+// plans/contacts' Context) — only marks both notification rows accepted and
+// hands the accepting client the sender's public key to write its own local
+// contact entry.
 contactsRoute.post('/requests/:id/accept', async (c) => {
   const id = c.req.param('id')
   const { username } = await c.req.json<{ username?: string }>()
@@ -76,22 +118,35 @@ contactsRoute.post('/requests/:id/accept', async (c) => {
   const [user] = await db.select().from(users).where(eq(users.username, username))
   if (!user) return c.json({ error: 'unknown username' }, 404)
 
-  const [request] = await db
+  const [incoming] = await db
     .select()
-    .from(contactRequests)
-    .where(and(eq(contactRequests.id, id), eq(contactRequests.toUserId, user.id)))
-  if (!request) return c.json({ error: 'request not found' }, 404)
-  if (request.status !== 'pending') return c.json({ error: 'request is not pending' }, 409)
+    .from(notifications)
+    .where(and(eq(notifications.id, id), eq(notifications.userId, user.id)))
+  if (!incoming) return c.json({ error: 'request not found' }, 404)
+  if (incoming.status !== 'pending') return c.json({ error: 'request is not pending' }, 409)
 
-  const [fromUser] = await db.select().from(users).where(eq(users.id, request.fromUserId))
+  const data = incoming.data as {
+    otherUserId: string
+    otherUsername: string
+    pairId: string
+    scannedFingerprint: string
+  }
+
+  const [fromUser] = await db.select().from(users).where(eq(users.id, data.otherUserId))
   if (!fromUser) return c.json({ error: 'requester no longer exists' }, 404)
 
-  await db.update(contactRequests).set({ status: 'accepted' }).where(eq(contactRequests.id, id))
+  await db.update(notifications).set({ status: 'accepted' }).where(eq(notifications.id, incoming.id))
+  await db.update(notifications).set({ status: 'accepted' }).where(eq(notifications.id, data.pairId))
 
   await notifyUserByPush(fromUser.id, {
     title: 'Primssg',
     body: `${user.username} accepted your contact request`,
-    url: '/chat',
+    url: '/chat?open=requests',
+    data: {
+      type: 'contact-accepted',
+      contact: { id: user.id, username: user.username },
+      keyFingerprint: data.scannedFingerprint,
+    },
   })
 
   return c.json({

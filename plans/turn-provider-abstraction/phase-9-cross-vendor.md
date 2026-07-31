@@ -18,3 +18,12 @@ Phases 3–8 each verify one vendor in isolation (its own env vars set, everythi
 ## Cleanup
 
 - [ ] Once all checks pass, unset every `*_SERVICE` env var except whichever one should be the actual default for this project going forward (a decision for whoever's deploying this, not part of this plan) — leaving all six set permanently in `server/.env` after verification is done would make `/turn/credentials`'s behavior needlessly opaque (always picks the same one, but for a non-obvious reason to anyone reading `.env` later).
+
+## Verification results
+
+All checks passed:
+- Priority order held with 2+ vars set (coturn + Metered) and with all six set simultaneously — `/turn/credentials` returned identical coturn credentials across repeated calls each time.
+- App-level: real two-session Playwright chat (`e2e/chat.test.mjs`) passed against local coturn with default `iceTransportPolicy`, then again with `NEXT_PUBLIC_ICE_TRANSPORT_POLICY=relay` forced (`client/.env.local`) — messages and a file attachment exchanged over the data channel both times.
+- Twilio spot-check (only `TWILIO_SERVICE`/`TWILIO_AUTH_TOKEN` set, relay still forced) also passed end-to-end.
+- Along the way, `client/.env.local`'s `NEXT_PUBLIC_SERVER_URL` was found pointed at a remote prod host (`webrtc-server.jujitest.com`) rather than the local dev server — changed permanently to `http://localhost:4000` per explicit instruction, since testing this phase against prod rather than the local abstraction under test would have been the wrong target.
+- Cleanup: `server/.env` left with `COTURN_SERVICE`/`COTURN_SECRET` as the sole active vendor (chosen as the deployed default — self-hosted, most control), all other vendors' vars commented out but preserved for reference.

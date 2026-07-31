@@ -14,7 +14,7 @@ Env: `TWILIO_SERVICE` (Account SID), `TWILIO_AUTH_TOKEN`.
 
 ```ts
 import Twilio from 'twilio'
-import type { TurnProvider } from './types'
+import type { RTCIceServerLike, TurnProvider } from './types'
 
 export const twilio: TurnProvider = {
   name: 'twilio',
@@ -22,12 +22,16 @@ export const twilio: TurnProvider = {
   async getIceServers() {
     const client = Twilio(process.env.TWILIO_SERVICE!, process.env.TWILIO_AUTH_TOKEN!)
     const token = await client.tokens.create() // optional: { ttl: 3600 }
-    return token.iceServers
+    return (token.iceServers ?? []).map(({ urls, username, credential }) => ({
+      urls: urls!,
+      username,
+      credential,
+    })) satisfies RTCIceServerLike[]
   },
 }
 ```
 
-`token.iceServers` is already `RTCIceServer[]`-shaped (plural `urls`, `credential` not `password`) — no transformation needed.
+`token.iceServers` is already `RTCIceServer[]`-shaped at runtime (plural `urls`, `credential` not `password`, confirmed live — `urls` is always present in practice) — but the `twilio` SDK's own TypeScript types mark `urls` as optional (`string | undefined`), which doesn't satisfy `RTCIceServerLike`'s required `urls`. The `.map(...)` above narrows the type at the boundary (asserting `urls!` since it's never actually absent) rather than loosening `RTCIceServerLike` itself to accommodate one vendor's overly-loose SDK types.
 
 ## Wiring in
 

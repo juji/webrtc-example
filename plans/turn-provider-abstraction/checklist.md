@@ -46,24 +46,24 @@ detail: [phase-5-metered.md](phase-5-metered.md)
 ## Phase 6 — Vendor: Twilio
 
 detail: [phase-6-twilio.md](phase-6-twilio.md)
-- [ ] **`server/src/turn-providers/twilio.ts`** — official `twilio` SDK, `client.tokens.create()`
-- [ ] Verified: relay candidate gathered
+- [x] **`server/src/turn-providers/twilio.ts`** — official `twilio` SDK, `client.tokens.create()`
+- [x] Verified: relay candidate gathered
 
 ## Phase 7 — Vendor: Xirsys
 
 detail: [phase-7-xirsys.md](phase-7-xirsys.md)
-- [ ] **`server/src/turn-providers/xirsys.ts`** — `PUT /_turn/{channel}`, unwraps `v.iceServers` (single object, not an array)
-- [ ] Verified: relay candidate gathered
+- [x] **`server/src/turn-providers/xirsys.ts`** — `PUT /_turn/{channel}`, unwraps `v.iceServers` (single object, not an array)
+- [x] Verified: relay candidate gathered
 
 ## Phase 8 — Vendor: ExpressTURN
 
 detail: [phase-8-expressturn.md](phase-8-expressturn.md)
-- [ ] **`server/src/turn-providers/express-turn.ts`** — static long-term credentials from env, no network call
-- [ ] Verified: relay candidate gathered against the static credentials
+- [x] **`server/src/turn-providers/express-turn.ts`** — static long-term credentials from env, no network call
+- [x] Verified: relay candidate gathered against the static credentials
 
 ## Phase 9 — Cross-vendor checks
 
 detail: [phase-9-cross-vendor.md](phase-9-cross-vendor.md)
-- [ ] **Priority order**: with multiple `*_SERVICE` vars filled in at once, confirm the same provider wins every time, per the fixed order
-- [ ] **App-level**: a real two-session chat connects (data channel opens) with each provider active one at a time, including with `iceTransportPolicy: "relay"` forced
-- [ ] **Cleanup**: unset every `*_SERVICE` var except whichever one is the actual deployed default
+- [x] **Priority order**: with multiple `*_SERVICE` vars filled in at once, confirm the same provider wins every time, per the fixed order
+- [x] **App-level**: a real two-session chat connects (data channel opens) with each provider active one at a time, including with `iceTransportPolicy: "relay"` forced
+- [x] **Cleanup**: unset every `*_SERVICE` var except whichever one is the actual deployed default

@@ -9,7 +9,8 @@
     "@aws-sdk/s3-request-presigner": "^3.1098.0",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.32",
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "twilio": "^6.0.2"
   },
   "devDependencies": {
     "@types/bun": "latest",

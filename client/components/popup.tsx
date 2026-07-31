@@ -88,7 +88,7 @@ export function Popup({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-6 text-black dark:text-zinc-50">{children}</div>
+        <div className="flex-1 overflow-y-auto px-6 py-6 text-black dark:text-zinc-50">{children}</div>
 
         <div className="flex items-center justify-between gap-2 bg-black/2 px-6 py-4 dark:bg-white/3">
           <button

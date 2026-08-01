@@ -37,7 +37,7 @@ export default function MockupPage() {
   const router = useRouter();
   const user = useRequireSession();
   const logout = useSessionStore((s) => s.logout);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{ id: string; username: string } | null>(null);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
@@ -99,7 +99,7 @@ export default function MockupPage() {
     if (!user) return;
     await getOrCreateConversation(user.id, contact.id);
     await refreshConversations();
-    setSelected(contact.username);
+    setSelected({ id: contact.id, username: contact.username });
   }
 
   if (!user) return null;
@@ -174,9 +174,9 @@ export default function MockupPage() {
           {conversations.map((c) => (
             <li key={c.contactId}>
               <button
-                onClick={() => setSelected(c.username)}
+                onClick={() => setSelected({ id: c.contactId, username: c.username })}
                 className={`flex w-full flex-col gap-0.5 px-8 py-2.5 text-left hover:bg-black/5 dark:hover:bg-white/5 ${
-                  selected === c.username ? "bg-black/5 dark:bg-white/5" : ""
+                  selected?.id === c.contactId ? "bg-black/5 dark:bg-white/5" : ""
                 }`}
               >
                 <span className="font-medium text-black dark:text-zinc-50">{c.username}</span>
@@ -213,7 +213,13 @@ export default function MockupPage() {
 
       <div className={`min-h-0 flex-1 flex-col ${selected ? "flex" : "hidden md:flex"}`}>
         {selected ? (
-          <ChatPane username={selected} messages={[]} connected={false} onBack={() => setSelected(null)} />
+          <ChatPane
+            selfId={user.id}
+            selfUsername={user.username}
+            peerId={selected.id}
+            username={selected.username}
+            onBack={() => setSelected(null)}
+          />
         ) : (
           <div className="flex flex-1 items-center justify-center">
             <p className="text-sm text-zinc-500">Select a conversation</p>

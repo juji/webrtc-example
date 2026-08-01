@@ -3,11 +3,12 @@ import { create } from "zustand";
 export type MessageStatus = "sending" | "in-transit" | "sent" | "read";
 
 export type ChatMessage = {
-  clientId: string;
+  messageId: string;
   text?: string;
-  file?: { name: string; type: string; url: string };
+  files: { name: string; type: string; url: string }[];
   fromSelf: boolean;
   status: MessageStatus;
+  createdAt: string;
 };
 
 // Server row shape (server/src/db/schema.ts's `messages` table).
@@ -25,7 +26,7 @@ export type MessageRow = {
 type MessagesState = {
   byPeer: Record<string, ChatMessage[]>;
   addMessage: (peer: string, message: ChatMessage) => void;
-  updateStatus: (peer: string, clientId: string, status: MessageStatus) => void;
+  updateStatus: (peer: string, messageId: string, status: MessageStatus) => void;
 };
 
 // Stable reference for peers with no messages yet, so selectors like
@@ -40,11 +41,11 @@ export const useMessagesStore = create<MessagesState>()((set) => ({
       byPeer: { ...state.byPeer, [peer]: [...(state.byPeer[peer] ?? []), message] },
     })),
 
-  updateStatus: (peer, clientId, status) =>
+  updateStatus: (peer, messageId, status) =>
     set((state) => ({
       byPeer: {
         ...state.byPeer,
-        [peer]: (state.byPeer[peer] ?? []).map((m) => (m.clientId === clientId ? { ...m, status } : m)),
+        [peer]: (state.byPeer[peer] ?? []).map((m) => (m.messageId === messageId ? { ...m, status } : m)),
       },
     })),
 }));

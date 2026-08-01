@@ -1,57 +1,98 @@
 "use client";
 
-import { ArrowLeft, Paperclip, Send } from "lucide-react";
-import { useRef, useState } from "react";
+import { ArrowLeft, Camera, Mic, Paperclip, Send, Upload, Video, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { isExtensionAllowed } from "@/lib/attachment-validation";
+import { useWebRtcChat } from "@/lib/use-webrtc-chat";
+import { CapturePopup, type CaptureMode } from "./capture-popup";
 
-// UI-only pane — no useWebRtcChat wiring yet. Shape matches ChatMessage
-// (client/lib/messages-store.ts) plus a createdAt this pane needs for the
-// date/time labels, which the real store doesn't track yet.
-export type ChatPaneMessage = {
-  clientId: string;
-  text?: string;
-  file?: { name: string; type: string };
-  fromSelf: boolean;
-  status: "sending" | "in-transit" | "sent" | "read";
-  createdAt: Date;
-};
-
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+function isSameDay(a: string, b: string): boolean {
+  const dateA = new Date(a);
+  const dateB = new Date(b);
+  return (
+    dateA.getFullYear() === dateB.getFullYear() &&
+    dateA.getMonth() === dateB.getMonth() &&
+    dateA.getDate() === dateB.getDate()
+  );
 }
 
-function formatDateLabel(date: Date): string {
+function formatDateLabel(iso: string): string {
+  const date = new Date(iso);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  if (isSameDay(date, today)) return "Today";
-  if (isSameDay(date, yesterday)) return "Yesterday";
+  if (isSameDay(iso, today.toISOString())) return "Today";
+  if (isSameDay(iso, yesterday.toISOString())) return "Yesterday";
   return date.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
 }
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
 export function ChatPane({
+  selfId,
+  selfUsername,
+  peerId,
   username,
-  messages,
-  connected,
   onBack,
 }: {
+  selfId: string;
+  selfUsername: string;
+  peerId: string;
   username: string;
-  messages: ChatPaneMessage[];
-  connected: boolean;
   onBack?: () => void;
 }) {
+  const { connected, messages, sendMessage, sendFile } = useWebRtcChat(selfId, selfUsername, peerId, username);
   const [draft, setDraft] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [captureMode, setCaptureMode] = useState<CaptureMode | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+
+  const audioEnabled = process.env.NEXT_PUBLIC_ATTACHMENT_AUDIO_RECORDING === "true";
+  const videoEnabled = process.env.NEXT_PUBLIC_ATTACHMENT_VIDEO_RECORDING === "true";
+  const photoEnabled = process.env.NEXT_PUBLIC_ATTACHMENT_PHOTO_CAPTURE === "true";
+
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) {
+        setAttachMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [attachMenuOpen]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!draft.trim() && !selectedFile) return;
+    if (draft.trim()) sendMessage(draft.trim());
+    if (selectedFile) sendFile(selectedFile);
     setDraft("");
+    setSelectedFile(null);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
+  }
+
+  function acceptFile(file: File) {
+    if (!isExtensionAllowed(file.name)) {
+      setFileError("That file type isn't allowed.");
+      return;
+    }
+    setFileError(null);
+    setSelectedFile(file);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) acceptFile(file);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -93,7 +134,7 @@ export function ChatPane({
           const prev = messages[i - 1];
           const showDateSeparator = !prev || !isSameDay(prev.createdAt, m.createdAt);
           return (
-            <li key={m.clientId} className="contents">
+            <li key={m.messageId} className="contents">
               {showDateSeparator && (
                 <div className="sticky top-0 z-10 -mx-4 mb-2 self-stretch bg-background/30 px-4 py-2 text-center backdrop-blur-lg">
                   <span className="text-xs font-medium text-zinc-500">{formatDateLabel(m.createdAt)}</span>
@@ -106,10 +147,10 @@ export function ChatPane({
                     : "self-start rounded-bl-md bg-black/5 text-black dark:bg-white/10 dark:text-zinc-50"
                 }`}
               >
-                {m.file ? (
+                {m.files[0] ? (
                   <span className="flex items-center gap-2 text-sm underline">
                     <Paperclip className="h-3.5 w-3.5 shrink-0" />
-                    {m.file.name}
+                    {m.files[0].name}
                   </span>
                 ) : (
                   <span className="text-sm">{m.text}</span>
@@ -124,34 +165,111 @@ export function ChatPane({
         })}
       </ul>
 
-      <form onSubmit={handleSubmit} className="flex items-end gap-2 border-t border-black/10 px-4 py-4 dark:border-white/10">
-        <button
-          type="button"
-          aria-label="Attach file"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
-        >
-          <Paperclip className="h-4 w-4" />
-        </button>
-        <textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Message"
-          rows={1}
-          style={{ maxHeight: MAX_TEXTAREA_HEIGHT }}
-          className="flex-1 resize-none overflow-y-auto rounded-2xl border border-black/10 bg-transparent px-4 py-2 text-sm text-black outline-none placeholder:text-zinc-500 focus:border-black/40 dark:border-white/10 dark:text-zinc-50 dark:focus:border-white/40"
-        />
-        <button
-          type="submit"
-          disabled={!draft.trim()}
-          aria-label="Send message"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: "#ea580c" }}
-        >
-          <Send className="h-4 w-4 -translate-x-px translate-y-px" />
-        </button>
-      </form>
+      <div className="border-t border-black/10 dark:border-white/10">
+        {fileError && <p className="px-4 pt-3 text-sm text-red-500">{fileError}</p>}
+        {selectedFile && (
+          <div className="mx-4 mt-3 flex w-fit items-center gap-2 rounded-full bg-black/5 px-3 py-1.5 text-sm text-black dark:bg-white/10 dark:text-zinc-50">
+            <Paperclip className="h-3.5 w-3.5 shrink-0" />
+            <span className="max-w-48 truncate">{selectedFile.name}</span>
+            <button
+              type="button"
+              onClick={() => setSelectedFile(null)}
+              aria-label="Remove attachment"
+              className="flex h-4 w-4 shrink-0 items-center justify-center text-zinc-500 hover:text-black dark:hover:text-zinc-50"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="flex items-end gap-2 px-4 py-4">
+          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+          <div ref={attachMenuRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setAttachMenuOpen((v) => !v)}
+              aria-label="Attach"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+            {attachMenuOpen && (
+              <div className="absolute bottom-full left-0 mb-2 flex w-44 flex-col overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttachMenuOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload file
+                </button>
+                {audioEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachMenuOpen(false);
+                      setCaptureMode("audio");
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                  >
+                    <Mic className="h-4 w-4" />
+                    Record audio
+                  </button>
+                )}
+                {videoEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachMenuOpen(false);
+                      setCaptureMode("video");
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                  >
+                    <Video className="h-4 w-4" />
+                    Record video
+                  </button>
+                )}
+                {photoEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachMenuOpen(false);
+                      setCaptureMode("photo");
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                  >
+                    <Camera className="h-4 w-4" />
+                    Take photo
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Message"
+            rows={1}
+            style={{ maxHeight: MAX_TEXTAREA_HEIGHT }}
+            className="flex-1 resize-none overflow-y-auto rounded-2xl border border-black/10 bg-transparent px-4 py-2 text-sm text-black outline-none placeholder:text-zinc-500 focus:border-black/40 dark:border-white/10 dark:text-zinc-50 dark:focus:border-white/40"
+          />
+          <button
+            type="submit"
+            disabled={!draft.trim() && !selectedFile}
+            aria-label="Send message"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: "#ea580c" }}
+          >
+            <Send className="h-4 w-4 -translate-x-px translate-y-px" />
+          </button>
+        </form>
+      </div>
+
+      <CapturePopup mode={captureMode} onClose={() => setCaptureMode(null)} onCapture={acceptFile} />
     </div>
   );
 }

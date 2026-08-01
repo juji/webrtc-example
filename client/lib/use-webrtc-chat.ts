@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import { uuidv7 } from "uuidv7";
 import { ackMessage, fetchFailoverMessages, sendFailoverFile, sendFailoverMessage, SERVER_URL } from "./api";
-import { EMPTY_MESSAGES, useMessagesStore, type ChatMessage } from "./messages-store";
+import { addMessage as persistMessage, listMessages } from "./convos";
+import { EMPTY_MESSAGES, useMessagesStore, type ChatMessage, type MessageStatus } from "./messages-store";
 import { useSignalingStore, type SignalMessage } from "./signaling-store";
 
 // Every text frame on the data channel is one of these. Binary frames are always
 // raw file chunks belonging to the most recently started transfer.
 type DataChannelMessage =
-  | { kind: "text"; clientId: string; text: string }
-  | { kind: "file-start"; clientId: string; name: string; type: string }
-  | { kind: "file-end"; clientId: string }
-  | { kind: "ack"; clientId: string }
-  | { kind: "read"; clientId: string };
+  | { kind: "text"; messageId: string; text: string }
+  | { kind: "file-start"; messageId: string; name: string; type: string }
+  | { kind: "file-end"; messageId: string }
+  | { kind: "ack"; messageId: string }
+  | { kind: "read"; messageId: string };
 
 export type { ChatMessage };
 
@@ -34,7 +36,7 @@ function isInitiator(self: string, peer: string) {
   return self < peer;
 }
 
-export function useWebRtcChat(selfUsername: string, peerUsername: string) {
+export function useWebRtcChat(selfId: string, selfUsername: string, peerId: string, peerUsername: string) {
   const [connected, setConnected] = useState(false);
   const messages = useMessagesStore((s) => s.byPeer[peerUsername] ?? EMPTY_MESSAGES);
   const addMessage = useMessagesStore((s) => s.addMessage);
@@ -44,45 +46,98 @@ export function useWebRtcChat(selfUsername: string, peerUsername: string) {
   const incomingFileRef = useRef<{ id: string; name: string; type: string; chunks: ArrayBuffer[] } | null>(
     null,
   );
-  // clientId -> pending ack-timeout, so a real ack can cancel it before it fires.
+  // messageId -> pending ack-timeout, so a real ack can cancel it before it fires.
   const ackTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Mirrors every in-memory addMessage/updateStatus into webrtc-convos so a
+  // reload doesn't lose history — messages-store.ts stays the live/render
+  // source of truth, this is a write-through, not a replacement for it.
+  function persist(message: ChatMessage) {
+    persistMessage({
+      ownerId: selfId,
+      threadId: peerId,
+      messageId: message.messageId,
+      sender: message.fromSelf ? { id: selfId, username: selfUsername } : { id: peerId, username: peerUsername },
+      text: message.text,
+      files: message.files,
+      status: message.status,
+      createdAt: message.createdAt,
+      sentAt: message.status === "sent" || message.status === "read" ? new Date().toISOString() : null,
+      deliveredAt: message.status === "read" ? new Date().toISOString() : null,
+    });
+  }
+
+  function addAndPersist(message: ChatMessage) {
+    addMessage(peerUsername, message);
+    persist(message);
+  }
+
+  function updateStatusAndPersist(messageId: string, status: MessageStatus) {
+    updateStatus(peerUsername, messageId, status);
+    const updated = useMessagesStore.getState().byPeer[peerUsername]?.find((m) => m.messageId === messageId);
+    if (updated) persist(updated);
+  }
 
   // Server-dispatch fallback: used when the channel isn't open, and when a P2P
   // send's ack-timeout fires. Shared by both sendMessage and sendFile. The row
   // id isn't tracked client-side — message-acked carries it directly, so the
   // sender's final DELETE works even after closing and reopening the app.
-  function dispatchTextViaServer(clientId: string, text: string) {
-    sendFailoverMessage({ clientId, fromUsername: selfUsername, toUsername: peerUsername, text });
+  function dispatchTextViaServer(messageId: string, text: string) {
+    sendFailoverMessage({ clientId: messageId, fromUsername: selfUsername, toUsername: peerUsername, text });
   }
 
-  function dispatchFileViaServer(clientId: string, file: File) {
-    sendFailoverFile({ clientId, fromUsername: selfUsername, toUsername: peerUsername, file });
+  function dispatchFileViaServer(messageId: string, file: File) {
+    sendFailoverFile({ clientId: messageId, fromUsername: selfUsername, toUsername: peerUsername, file });
   }
 
-  function armAckTimeout(clientId: string, onTimeout: () => void) {
+  function armAckTimeout(messageId: string, onTimeout: () => void) {
     const timer = setTimeout(() => {
-      ackTimersRef.current.delete(clientId);
+      ackTimersRef.current.delete(messageId);
       onTimeout();
     }, ACK_TIMEOUT_MS);
-    ackTimersRef.current.set(clientId, timer);
+    ackTimersRef.current.set(messageId, timer);
   }
+
+  // Load persisted history on mount — messages-store.ts is in-memory only and
+  // starts empty on every reload/remount; webrtc-convos is what survives that.
+  // Only seeds messages this peer thread doesn't already have in memory (a
+  // fast remount within the same session shouldn't duplicate what's already there).
+  useEffect(() => {
+    listMessages(selfId, peerId).then((rows) => {
+      const existingIds = new Set(useMessagesStore.getState().byPeer[peerUsername]?.map((m) => m.messageId));
+      for (const row of rows) {
+        if (existingIds.has(row.messageId)) continue;
+        addMessage(peerUsername, {
+          messageId: row.messageId,
+          text: row.text,
+          files: row.files,
+          fromSelf: row.sender.id === selfId,
+          status: row.status,
+          createdAt: row.createdAt,
+        });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selfId, peerId, peerUsername]);
 
   // One-shot catch-up fetch on mount: anything the peer sent while this device
   // was unreachable. Not a poll — runs once per chat-page visit.
   useEffect(() => {
     fetchFailoverMessages(peerUsername, selfUsername).then((rows) => {
       for (const row of rows) {
-        addMessage(peerUsername, {
-          clientId: row.clientId,
+        addAndPersist({
+          messageId: row.clientId,
           text: row.text ?? undefined,
-          file: row.fileUrl ? { name: row.fileName!, type: row.fileType!, url: row.fileUrl } : undefined,
+          files: row.fileUrl ? [{ name: row.fileName!, type: row.fileType!, url: row.fileUrl }] : [],
           fromSelf: false,
           status: "sent",
+          createdAt: row.createdAt,
         });
         ackMessage(row.id);
       }
     });
-  }, [peerUsername, selfUsername, addMessage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peerUsername, selfUsername]);
 
   // Viewing a thread marks the peer's delivered messages read — local status flip,
   // best-effort echo over the data channel if still connected, no server involvement.
@@ -90,8 +145,8 @@ export function useWebRtcChat(selfUsername: string, peerUsername: string) {
     const state = useMessagesStore.getState();
     for (const m of state.byPeer[peerUsername] ?? EMPTY_MESSAGES) {
       if (m.fromSelf || m.status !== "sent") continue;
-      state.updateStatus(peerUsername, m.clientId, "read");
-      dcRef.current?.send(JSON.stringify({ kind: "read", clientId: m.clientId } satisfies DataChannelMessage));
+      updateStatusAndPersist(m.messageId, "read");
+      dcRef.current?.send(JSON.stringify({ kind: "read", messageId: m.messageId } satisfies DataChannelMessage));
     }
   });
 
@@ -127,37 +182,40 @@ export function useWebRtcChat(selfUsername: string, peerUsername: string) {
           const message: DataChannelMessage = JSON.parse(event.data);
 
           if (message.kind === "text") {
-            addMessage(peerUsername, {
-              clientId: message.clientId,
+            addAndPersist({
+              messageId: message.messageId,
               text: message.text,
+              files: [],
               fromSelf: false,
               status: "sent",
+              createdAt: new Date().toISOString(),
             });
-            dc.send(JSON.stringify({ kind: "ack", clientId: message.clientId } satisfies DataChannelMessage));
+            dc.send(JSON.stringify({ kind: "ack", messageId: message.messageId } satisfies DataChannelMessage));
           } else if (message.kind === "file-start") {
-            incomingFileRef.current = { id: message.clientId, name: message.name, type: message.type, chunks: [] };
+            incomingFileRef.current = { id: message.messageId, name: message.name, type: message.type, chunks: [] };
           } else if (message.kind === "file-end") {
             const transfer = incomingFileRef.current;
             incomingFileRef.current = null;
-            if (!transfer || transfer.id !== message.clientId) return;
+            if (!transfer || transfer.id !== message.messageId) return;
             const blob = new Blob(transfer.chunks, { type: transfer.type });
             const url = URL.createObjectURL(blob);
-            addMessage(peerUsername, {
-              clientId: message.clientId,
-              file: { name: transfer.name, type: transfer.type, url },
+            addAndPersist({
+              messageId: message.messageId,
+              files: [{ name: transfer.name, type: transfer.type, url }],
               fromSelf: false,
               status: "sent",
+              createdAt: new Date().toISOString(),
             });
-            dc.send(JSON.stringify({ kind: "ack", clientId: message.clientId } satisfies DataChannelMessage));
+            dc.send(JSON.stringify({ kind: "ack", messageId: message.messageId } satisfies DataChannelMessage));
           } else if (message.kind === "ack") {
-            const timer = ackTimersRef.current.get(message.clientId);
+            const timer = ackTimersRef.current.get(message.messageId);
             if (timer) {
               clearTimeout(timer);
-              ackTimersRef.current.delete(message.clientId);
+              ackTimersRef.current.delete(message.messageId);
             }
-            updateStatus(peerUsername, message.clientId, "sent");
+            updateStatusAndPersist(message.messageId, "sent");
           } else if (message.kind === "read") {
-            updateStatus(peerUsername, message.clientId, "read");
+            updateStatusAndPersist(message.messageId, "read");
           }
         };
       }
@@ -203,48 +261,57 @@ export function useWebRtcChat(selfUsername: string, peerUsername: string) {
       unsubscribe?.();
       pcRef.current?.close();
     };
-  }, [selfUsername, peerUsername, addMessage, updateStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selfId, selfUsername, peerId, peerUsername]);
 
   function sendMessage(text: string) {
-    const clientId = crypto.randomUUID();
-    addMessage(peerUsername, { clientId, text, fromSelf: true, status: "sending" });
-
-    const dc = dcRef.current;
-    if (dc && dc.readyState === "open") {
-      updateStatus(peerUsername, clientId, "in-transit");
-      dc.send(JSON.stringify({ kind: "text", clientId, text } satisfies DataChannelMessage));
-      armAckTimeout(clientId, () => dispatchTextViaServer(clientId, text));
-    } else {
-      updateStatus(peerUsername, clientId, "in-transit");
-      dispatchTextViaServer(clientId, text);
-    }
-  }
-
-  async function sendFile(file: File) {
-    const clientId = crypto.randomUUID();
-    const url = URL.createObjectURL(file);
-    addMessage(peerUsername, {
-      clientId,
-      file: { name: file.name, type: file.type, url },
+    const messageId = uuidv7();
+    addAndPersist({
+      messageId,
+      text,
+      files: [],
       fromSelf: true,
       status: "sending",
+      createdAt: new Date().toISOString(),
     });
 
     const dc = dcRef.current;
     if (dc && dc.readyState === "open") {
-      updateStatus(peerUsername, clientId, "in-transit");
-      dc.send(JSON.stringify({ kind: "file-start", clientId, name: file.name, type: file.type } satisfies DataChannelMessage));
+      updateStatusAndPersist(messageId, "in-transit");
+      dc.send(JSON.stringify({ kind: "text", messageId, text } satisfies DataChannelMessage));
+      armAckTimeout(messageId, () => dispatchTextViaServer(messageId, text));
+    } else {
+      updateStatusAndPersist(messageId, "in-transit");
+      dispatchTextViaServer(messageId, text);
+    }
+  }
+
+  async function sendFile(file: File) {
+    const messageId = uuidv7();
+    const url = URL.createObjectURL(file);
+    addAndPersist({
+      messageId,
+      files: [{ name: file.name, type: file.type, url }],
+      fromSelf: true,
+      status: "sending",
+      createdAt: new Date().toISOString(),
+    });
+
+    const dc = dcRef.current;
+    if (dc && dc.readyState === "open") {
+      updateStatusAndPersist(messageId, "in-transit");
+      dc.send(JSON.stringify({ kind: "file-start", messageId, name: file.name, type: file.type } satisfies DataChannelMessage));
 
       const buffer = await file.arrayBuffer();
       for (let offset = 0; offset < buffer.byteLength; offset += CHUNK_SIZE) {
         dc.send(buffer.slice(offset, offset + CHUNK_SIZE));
       }
 
-      dc.send(JSON.stringify({ kind: "file-end", clientId } satisfies DataChannelMessage));
-      armAckTimeout(clientId, () => dispatchFileViaServer(clientId, file));
+      dc.send(JSON.stringify({ kind: "file-end", messageId } satisfies DataChannelMessage));
+      armAckTimeout(messageId, () => dispatchFileViaServer(messageId, file));
     } else {
-      updateStatus(peerUsername, clientId, "in-transit");
-      dispatchFileViaServer(clientId, file);
+      updateStatusAndPersist(messageId, "in-transit");
+      dispatchFileViaServer(messageId, file);
     }
   }
 

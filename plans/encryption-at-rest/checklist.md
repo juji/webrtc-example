@@ -46,7 +46,7 @@ detail: [phase-3-chat-ui.md](phase-3-chat-ui.md)
 - [x] **User search removed everywhere** (`searchUsers()` deleted from `client/lib/api.ts`, `/users` stripped to a bare greeting + logout) — `/users` is currently unreachable from the app, an accepted gap until real conversation data replaces it
 - [x] **Reusable `Popup` component** (`client/components/popup.tsx`): full-screen on mobile / centered+blurred-backdrop on desktop, header/content/footer slots, default Cancel-red/Confirm-green buttons, open/close animation via `tw-animate-css` — wired into the chat page's logout flow
 - [x] **Dev workflow fixes**: `dev.sh` gates `db:push` and server startup behind real Postgres/RustFS readiness checks (was racing before), `bun run wipe` added for full local volume reset
-- [ ] **Not yet wired**: real `/messages/conversations` data (sidebar still reads a hardcoded empty array), the chat pane is still placeholder text, `chat-old` not yet deleted
+- [x] **Real conversation data, real chat pane, and `chat-old` deletion all resolved by later plans** — real conversation data wired in `plans/contacts`, the chat pane's real UI/functionality built out across `plans/contacts` and `plans/convo`, `chat-old` deleted in `plans/convo` Phase 9
 
 ## Phase 4 — Adding contacts
 

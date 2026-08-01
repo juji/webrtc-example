@@ -20,11 +20,12 @@ export function MessageStatusListener() {
       if (message.type === "new-message") {
         const row = message.message;
         addMessage(message.fromUsername, {
-          clientId: row.clientId,
+          messageId: row.clientId,
           text: row.text ?? undefined,
-          file: row.fileUrl ? { name: row.fileName!, type: row.fileType!, url: row.fileUrl } : undefined,
+          files: row.fileUrl ? [{ name: row.fileName!, type: row.fileType!, url: row.fileUrl }] : [],
           fromSelf: false,
           status: "sent",
+          createdAt: row.createdAt,
         });
         ackMessage(row.id);
       } else {

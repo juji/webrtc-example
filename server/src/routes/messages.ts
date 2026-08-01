@@ -9,11 +9,31 @@ import { BUCKET, s3 } from '../storage'
 
 const PRESIGN_EXPIRY_SECONDS = 5 * 60
 
+const DEFAULT_BLACKLIST_EXTENSIONS =
+  'exe,msi,bat,cmd,com,scr,pif,vbs,vbe,js,jse,wsf,wsh,ps1,ps1xml,psc1,sh,bash,zsh,csh,ksh,run,app,apk,ipa,dmg,pkg,dll,so,dylib,sys,drv,jar,deb,rpm'
+
 export const messagesRoute = new Hono()
 
 async function findUserByUsername(username: string) {
   const [user] = await db.select().from(users).where(eq(users.username, username))
   return user
+}
+
+function isExtensionAllowed(fileName: string): boolean {
+  const extension = fileName.split('.').pop()?.toLowerCase() ?? ''
+
+  const whitelist = process.env.ATTACHMENT_WHITELIST_EXTENSIONS
+  if (whitelist) {
+    const allowed = whitelist.split(',').map((e) => e.trim().toLowerCase())
+    return allowed.includes(extension)
+  }
+
+  const blacklist = process.env.ATTACHMENT_BLACKLIST_EXTENSIONS ?? DEFAULT_BLACKLIST_EXTENSIONS
+  const blocked = blacklist
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+  return !blocked.includes(extension)
 }
 
 messagesRoute.post('/', async (c) => {
@@ -127,6 +147,10 @@ messagesRoute.post('/attachment/presign', async (c) => {
 
   if (!clientId || !fromUsername || !toUsername || !fileName || !fileType) {
     return c.json({ error: 'clientId, fromUsername, toUsername, fileName and fileType are required' }, 400)
+  }
+
+  if (!isExtensionAllowed(fileName)) {
+    return c.json({ error: 'file extension not allowed' }, 400)
   }
 
   const [fromUser, toUser] = await Promise.all([

@@ -99,8 +99,11 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
       });
   }, [scanned]);
 
+  // Reset on open, not on close — Popup keeps this mounted and visible for
+  // its own close animation, so resetting on close was flashing the "mine"
+  // tab's content back in over whatever tab was showing while it animated out.
   useEffect(() => {
-    if (!open) {
+    if (open) {
       setTab("mine");
       setScanned(null);
       setVerifyResult(null);

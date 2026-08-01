@@ -54,6 +54,7 @@ export function ChatPane({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const audioEnabled = process.env.NEXT_PUBLIC_ATTACHMENT_AUDIO_RECORDING === "true";
   const videoEnabled = process.env.NEXT_PUBLIC_ATTACHMENT_VIDEO_RECORDING === "true";
@@ -69,6 +70,10 @@ export function ChatPane({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [attachMenuOpen]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView();
+  }, [messages.length]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -124,9 +129,10 @@ export function ChatPane({
           )}
           <h1 className="text-base font-semibold text-black dark:text-zinc-50">{username}</h1>
         </div>
-        <span className={`text-sm ${connected ? "text-green-600 dark:text-green-500" : "text-zinc-500"}`}>
-          {connected ? "Connected" : "Connecting…"}
-        </span>
+        <span
+          aria-label={connected ? "Connected" : "Connecting…"}
+          className={`h-2.5 w-2.5 shrink-0 rounded-full ${connected ? "bg-green-600 dark:bg-green-500" : "bg-zinc-400 dark:bg-zinc-600"}`}
+        />
       </div>
 
       <ul className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-0 pb-6">
@@ -163,6 +169,7 @@ export function ChatPane({
             </li>
           );
         })}
+        <div ref={messagesEndRef} />
       </ul>
 
       <div className="border-t border-black/10 dark:border-white/10">

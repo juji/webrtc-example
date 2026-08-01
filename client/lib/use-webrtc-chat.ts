@@ -91,11 +91,15 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
   // id isn't tracked client-side — message-acked carries it directly, so the
   // sender's final DELETE works even after closing and reopening the app.
   function dispatchTextViaServer(messageId: string, text: string) {
-    sendFailoverMessage({ clientId: messageId, fromUsername: selfUsername, toUsername: peerUsername, text });
+    sendFailoverMessage({ clientId: messageId, fromUsername: selfUsername, toUsername: peerUsername, text }).then(
+      () => updateStatusAndPersist(messageId, "sent"),
+    );
   }
 
   function dispatchFileViaServer(messageId: string, file: File) {
-    sendFailoverFile({ clientId: messageId, fromUsername: selfUsername, toUsername: peerUsername, file });
+    sendFailoverFile({ clientId: messageId, fromUsername: selfUsername, toUsername: peerUsername, file }).then(() =>
+      updateStatusAndPersist(messageId, "sent"),
+    );
   }
 
   function armAckTimeout(messageId: string, onTimeout: () => void) {

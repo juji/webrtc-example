@@ -19,6 +19,7 @@ self.addEventListener("push", (event) => {
       self.registration.showNotification(data.title, {
         body: data.body,
         icon: "/icon-192.png",
+        badge: "/icon-192.png",
         data: { url: data.url ?? "/", payload: data.data },
       }),
       // Broadcast the structured payload to any already-open tab right away —

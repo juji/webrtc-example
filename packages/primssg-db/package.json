@@ -3,5 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "types": "./src/index.ts",
-  "main": "./src/index.ts"
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.53.0-build1"
+  }
 }

@@ -13,7 +13,13 @@ Browser support checked (2026): OPFS sync-access-handle support is Baseline-soli
 ## Phase 0 — `PrimssgDB` interface + `PrimssgDBWasm` implementation
 
 - [x] **`packages/primssg-db` workspace created** — new Bun workspace, root `package.json`'s `workspaces` gained `"packages/*"`; `packages/primssg-db/package.json` scaffolded (name `primssg-db`, points at `src/index.ts`, not yet written). `client`/`server` can now depend on it as `"primssg-db": "workspace:*"` once there's something to import.
-- [ ] `PrimssgDB` interface + `PrimssgDBWasm` implementation itself — TBD
+- [x] **`PrimssgDB` interface written** (`packages/primssg-db/src/primssg-db.ts`) — `connect()`/`disconnect()` as the only generic lifecycle methods, no `query()`/raw-SQL escape hatch. Every data method traced from a real call site across `client/lib/keys.ts`/`contacts.ts`/`chats.ts`, not guessed:
+  - `storeKeys(id, bundle)` / `loadKeys(id)` — keys
+  - `addContact(contact)` / `listContacts(ownerId)` / `getContact(ownerId, id)` — contacts
+  - `listConversations(ownerId)` / `getOrCreateConversation(ownerId, contactId)` — chats
+  - Types (`Contact`, `Conversation`, `KeyBundle`, `LastMessage`) ported to `packages/primssg-db/src/types.ts`, matching the client's existing shapes.
+- [x] **`PrimssgDBWasm` implementation written** (`packages/primssg-db/src/primssg-db-wasm.ts`) — all 7 methods implemented against real SQL (schema in `packages/primssg-db/src/schema.ts`: `keys`, `contacts`, `conversations` tables, columns matching the TS types 1:1). `connect()` currently opens an in-memory `sqlite3.oo1.DB` (`@sqlite.org/sqlite-wasm`, added as a `primssg-db` dependency) — **not yet persisted, not yet worker/SAHPool-backed**, that's Phase 1. Every other method only touches `this.db`, so Phase 1 only needs to change `connect()`'s body, nothing else.
+- [x] Typechecks clean (`client/node_modules/.bin/tsc --noEmit -p packages/primssg-db/tsconfig.json` — `primssg-db` has no `typescript` devDependency of its own yet, checked via `client/`'s compiler as a stand-in)
 
 ## Phase 1 — Worker + OPFS wiring for the web backend
 

@@ -1,3 +1,7 @@
+## ON HOLD
+
+Blocked on `plans/dexie-migration` — every store this plan touches (`webrtc-keys`, `webrtc-contacts`, `webrtc-chats`, and the not-yet-built `webrtc-convos`) is being migrated from raw IndexedDB to Dexie. Writing Phase 1's `convos.ts` against raw IndexedDB now would just mean rewriting it again once Dexie lands — resume this plan after `plans/dexie-migration` is done.
+
 ## Context
 
 `ChatPane` (`client/components/chat-pane.tsx`, built in plans/contacts Phase 8) is a UI-only mockup — `messages`/`connected` are passed in from `chat/page.tsx` as `[]`/`false`. `useWebRtcChat` (`client/lib/use-webrtc-chat.ts`) already has the real WebRTC/signaling/failover logic, proven out in `chat-old/[username]/page.tsx`. This plan is wiring the two together — no new messaging functionality, just connecting what already exists.

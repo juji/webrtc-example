@@ -1,5 +1,9 @@
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
 import { ml_kem768 } from "@noble/post-quantum/ml-kem.js";
+import type { KeyBundle } from "primssg-db";
+import { useDbStore } from "./db-store";
+
+export type { KeyBundle } from "primssg-db";
 
 export function toBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -21,28 +25,6 @@ export async function fingerprint(publicKey: Uint8Array): Promise<string> {
   return toBase64(new Uint8Array(digest)).slice(0, 16);
 }
 
-const DB_NAME = "webrtc-keys";
-const STORE_NAME = "keys";
-
-// IndexedDB, not localStorage: private key material is Uint8Array, and keeping it
-// out of the same storage/devtools surface as ordinary session state (session-store.ts
-// uses localStorage) is deliberate, not just a technical necessity.
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-export type KeyBundle = {
-  dsaPublicKey: Uint8Array;
-  dsaSecretKey: Uint8Array;
-  kemPublicKey: Uint8Array;
-  kemSecretKey: Uint8Array;
-};
-
 export function generateKeys(): KeyBundle {
   const dsa = ml_dsa65.keygen();
   const kem = ml_kem768.keygen();
@@ -58,21 +40,11 @@ export function generateKeys(): KeyBundle {
 // before the server round-trip (to send them), but can only store the
 // bundle under the server-issued id after that round-trip completes.
 export async function storeKeys(id: string, bundle: KeyBundle): Promise<void> {
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(bundle, id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  await useDbStore.getState().connect();
+  await useDbStore.getState().db.storeKeys(id, bundle);
 }
 
 export async function loadKeys(id: string): Promise<KeyBundle | undefined> {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const req = tx.objectStore(STORE_NAME).get(id);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+  await useDbStore.getState().connect();
+  return useDbStore.getState().db.loadKeys(id);
 }

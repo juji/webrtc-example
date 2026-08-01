@@ -2,15 +2,23 @@
 // live PrimssgDB connection — the only way to inspect OPFS/SQLite-Wasm data,
 // since it lives entirely in browser storage with no server-side file/endpoint.
 //
+// Uses a persistent Chromium profile (packages/primssg-db/.playwright-profile,
+// gitignored) rather than a fresh throwaway context each run — OPFS storage is
+// scoped per-profile, so this needs to be the *same* browser profile a real dev
+// session (or another script) used, or it'll always see an empty DB.
+//
 // Run: bun run packages/primssg-db/scripts/query.mjs "SELECT * FROM keys"
 
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 const sql = process.argv[2] ?? "SELECT * FROM keys";
+const PROFILE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", ".playwright-profile");
 
-const browser = await chromium.launch();
-const page = await browser.newPage();
+const context = await chromium.launchPersistentContext(PROFILE_DIR, {});
+const page = context.pages()[0] ?? (await context.newPage());
 await page.goto(`${BASE_URL}/dev/sqlite`);
 await page.waitForSelector("text=Connected");
 
@@ -20,7 +28,7 @@ await page.click('button:has-text("Run")');
 const errorLocator = page.locator("p.text-red-600");
 if (await errorLocator.count()) {
   console.error(await errorLocator.textContent());
-  await browser.close();
+  await context.close();
   process.exit(1);
 }
 
@@ -36,4 +44,4 @@ const result = await page.evaluate(() => {
 });
 
 console.log(JSON.stringify(result, null, 2));
-await browser.close();
+await context.close();

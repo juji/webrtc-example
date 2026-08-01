@@ -32,7 +32,9 @@ Browser support checked (2026): OPFS sync-access-handle support is Baseline-soli
 
 ## Phase 2 — Migrate `webrtc-keys` to `PrimssgDB`
 
-- [ ] TBD
+- [x] **`client/lib/keys.ts` rewritten**: `openDb()`/raw IndexedDB removed entirely, `DB_NAME`/`STORE_NAME` dropped. `storeKeys`/`loadKeys` now call `useDbStore.getState().connect()` then `useDbStore.getState().db.storeKeys(...)`/`.loadKeys(...)` — exported function signatures unchanged, so every caller (`api.ts`'s `register`/`login`, `qr-code-popup.tsx`) needed zero changes. `KeyBundle` re-exported from `primssg-db` instead of declared locally (same shape, one source of truth).
+- [x] **`packages/primssg-db/scripts/query.mjs` switched to a persistent Playwright profile** (`packages/primssg-db/.playwright-profile`, gitignored) instead of a fresh throwaway context per run — OPFS storage is scoped per-profile, so a fresh context always saw an empty DB regardless of what any other script/session had written. Found and fixed while verifying this phase.
+- [x] **Verified end-to-end, not just typechecked**: registered a real user through the actual app UI (Playwright, persistent profile), then queried the live `keys` table via `query.mjs` — confirmed a real row with a UUIDv7 `id` and correctly-sized ML-DSA-65 (1952/4032 byte) and ML-KEM-768 (1184/2400 byte) key material. `loadKeys` not separately live-tested (same `useDbStore` call pattern as `storeKeys`, already proven) — covered by Phase 5's fuller verification pass.
 
 ## Phase 3 — Migrate `webrtc-contacts` to `PrimssgDB`
 

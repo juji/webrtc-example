@@ -19,6 +19,7 @@ export type Conversation = {
   ownerId: string; // which locally-registered identity this conversation belongs to
   contactId: string; // the other party's user id
   lastMessage: LastMessage | null;
+  unreadCount: number;
   createdAt: string;
 };
 

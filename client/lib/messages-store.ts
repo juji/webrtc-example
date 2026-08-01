@@ -15,6 +15,7 @@ export type ChatMessage = {
 export type MessageRow = {
   id: string;
   clientId: string;
+  fromUserId: string;
   text: string | null;
   fileName: string | null;
   fileType: string | null;

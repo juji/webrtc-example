@@ -17,6 +17,8 @@ export abstract class PrimssgDB {
   abstract listConversations(ownerId: string): Promise<Conversation[]>;
   abstract getOrCreateConversation(ownerId: string, contactId: string): Promise<Conversation>;
   abstract setLastMessage(ownerId: string, contactId: string, lastMessage: LastMessage): Promise<void>;
+  abstract incrementUnread(ownerId: string, contactId: string): Promise<void>;
+  abstract clearUnread(ownerId: string, contactId: string): Promise<void>;
 
   // convos
   abstract addMessage(message: ConvoMessage): Promise<void>;

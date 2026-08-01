@@ -131,6 +131,14 @@ export class PrimssgDBWasm extends PrimssgDB {
     return this.call("setLastMessage", [ownerId, contactId, lastMessage]);
   }
 
+  incrementUnread(ownerId: string, contactId: string): Promise<void> {
+    return this.call("incrementUnread", [ownerId, contactId]);
+  }
+
+  clearUnread(ownerId: string, contactId: string): Promise<void> {
+    return this.call("clearUnread", [ownerId, contactId]);
+  }
+
   // convos
 
   addMessage(message: ConvoMessage): Promise<void> {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { uuidv7 } from "uuidv7";
 import { ackMessage, fetchFailoverMessages, sendFailoverFile, sendFailoverMessage, SERVER_URL } from "./api";
-import { setLastMessage } from "./chats";
+import { clearUnread, setLastMessage } from "./chats";
 import { addMessage as persistMessage, listMessages } from "./convos";
 import { EMPTY_MESSAGES, useMessagesStore, type ChatMessage, type MessageStatus } from "./messages-store";
 import { useSignalingStore, type SignalMessage } from "./signaling-store";
@@ -166,13 +166,21 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
   // best-effort echo over the data channel if still connected, no server involvement.
   useEffect(() => {
     const state = useMessagesStore.getState();
-    for (const m of state.byPeer[peerUsername] ?? EMPTY_MESSAGES) {
-      if (m.fromSelf || m.status !== "sent") continue;
-      updateStatusAndPersist(m.messageId, "read");
-      if (dcRef.current?.readyState === "open") {
-        dcRef.current.send(JSON.stringify({ kind: "read", messageId: m.messageId } satisfies DataChannelMessage));
+    const unread = (state.byPeer[peerUsername] ?? EMPTY_MESSAGES).filter((m) => !m.fromSelf && m.status === "sent");
+    if (unread.length === 0) return;
+    // Cleared before the per-message updateStatusAndPersist calls below: those
+    // synchronously trigger chat/page.tsx's conversations refresh (via the
+    // messages-store subscription), which reads unreadCount straight from the
+    // DB — if that refresh fires before this write lands, it reads the stale
+    // (pre-clear) count.
+    clearUnread(selfId, peerId).then(() => {
+      for (const m of unread) {
+        updateStatusAndPersist(m.messageId, "read");
+        if (dcRef.current?.readyState === "open") {
+          dcRef.current.send(JSON.stringify({ kind: "read", messageId: m.messageId } satisfies DataChannelMessage));
+        }
       }
-    }
+    });
   });
 
   useEffect(() => {

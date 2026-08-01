@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   lastMessageSender TEXT,
   lastMessageMessage TEXT,
   lastMessageStatus TEXT,
+  unreadCount INTEGER NOT NULL DEFAULT 0,
   createdAt TEXT NOT NULL,
   PRIMARY KEY (ownerId, contactId)
 );

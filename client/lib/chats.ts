@@ -17,3 +17,13 @@ export async function setLastMessage(ownerId: string, contactId: string, lastMes
   await useDbStore.getState().connect();
   await useDbStore.getState().db.setLastMessage(ownerId, contactId, lastMessage);
 }
+
+export async function incrementUnread(ownerId: string, contactId: string): Promise<void> {
+  await useDbStore.getState().connect();
+  await useDbStore.getState().db.incrementUnread(ownerId, contactId);
+}
+
+export async function clearUnread(ownerId: string, contactId: string): Promise<void> {
+  await useDbStore.getState().connect();
+  await useDbStore.getState().db.clearUnread(ownerId, contactId);
+}

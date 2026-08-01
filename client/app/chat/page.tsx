@@ -212,14 +212,21 @@ export default function MockupPage() {
             <li key={c.contactId}>
               <button
                 onClick={() => setSelected({ id: c.contactId, username: c.username })}
-                className={`flex w-full flex-col gap-0.5 px-8 py-2.5 text-left hover:bg-black/5 dark:hover:bg-white/5 ${
+                className={`flex w-full items-center justify-between gap-2 px-8 py-2.5 text-left hover:bg-black/5 dark:hover:bg-white/5 ${
                   selected?.id === c.contactId ? "bg-black/5 dark:bg-white/5" : ""
                 }`}
               >
-                <span className="font-medium text-black dark:text-zinc-50">{c.username}</span>
-                <span className="truncate text-sm text-zinc-500">
-                  {c.lastMessage ? c.lastMessage.message : "No messages yet"}
-                </span>
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="font-medium text-black dark:text-zinc-50">{c.username}</span>
+                  <span className="truncate text-sm text-zinc-500">
+                    {c.lastMessage ? c.lastMessage.message : "No messages yet"}
+                  </span>
+                </div>
+                {c.unreadCount > 0 && (
+                  <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-medium text-white">
+                    {c.unreadCount > 9 ? "9+" : c.unreadCount}
+                  </span>
+                )}
               </button>
             </li>
           ))}

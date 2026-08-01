@@ -20,6 +20,22 @@ class PrimssgDBWasmEngine {
     const poolUtil = await sqlite3.installOpfsSAHPoolVfs({ name: "primssg-db" });
     this.db = new poolUtil.OpfsSAHPoolDb(DB_FILENAME);
     this.db.exec(SCHEMA_SQL);
+    this.migrate();
+  }
+
+  // CREATE TABLE IF NOT EXISTS in SCHEMA_SQL only creates missing tables, not
+  // missing columns on tables that already existed pre-change — ad hoc column
+  // migrations for existing local DBs go here, each guarded by its own check.
+  private migrate(): void {
+    const db = this.requireDb();
+    const columns = db.exec({
+      sql: "PRAGMA table_info(conversations)",
+      rowMode: "object",
+      returnValue: "resultRows",
+    }) as unknown as { name: string }[];
+    if (!columns.some((c) => c.name === "unreadCount")) {
+      db.exec("ALTER TABLE conversations ADD COLUMN unreadCount INTEGER NOT NULL DEFAULT 0");
+    }
   }
 
   disconnect(): void {
@@ -101,30 +117,31 @@ class PrimssgDBWasmEngine {
 
   listConversations(ownerId: string): Conversation[] {
     const rows = this.requireDb().exec({
-      sql: `SELECT ownerId, contactId, lastMessageSender, lastMessageMessage, lastMessageStatus, createdAt
+      sql: `SELECT ownerId, contactId, lastMessageSender, lastMessageMessage, lastMessageStatus, unreadCount, createdAt
             FROM conversations WHERE ownerId = ?`,
       bind: [ownerId],
       rowMode: "object",
       returnValue: "resultRows",
-    }) as unknown as Record<string, string | null>[];
+    }) as unknown as Record<string, string | number | null>[];
     return rows.map(rowToConversation);
   }
 
   getOrCreateConversation(ownerId: string, contactId: string): Conversation {
     const db = this.requireDb();
     const existingRows = db.exec({
-      sql: `SELECT ownerId, contactId, lastMessageSender, lastMessageMessage, lastMessageStatus, createdAt
+      sql: `SELECT ownerId, contactId, lastMessageSender, lastMessageMessage, lastMessageStatus, unreadCount, createdAt
             FROM conversations WHERE ownerId = ? AND contactId = ?`,
       bind: [ownerId, contactId],
       rowMode: "object",
       returnValue: "resultRows",
-    }) as unknown as Record<string, string | null>[];
+    }) as unknown as Record<string, string | number | null>[];
     if (existingRows[0]) return rowToConversation(existingRows[0]);
 
     const conversation: Conversation = {
       ownerId,
       contactId,
       lastMessage: null,
+      unreadCount: 0,
       createdAt: new Date().toISOString(),
     };
     db.exec({
@@ -150,6 +167,22 @@ class PrimssgDBWasmEngine {
         lastMessage.status,
         new Date().toISOString(),
       ],
+    });
+  }
+
+  incrementUnread(ownerId: string, contactId: string): void {
+    this.requireDb().exec({
+      sql: `INSERT INTO conversations (ownerId, contactId, unreadCount, createdAt)
+            VALUES (?, ?, 1, ?)
+            ON CONFLICT(ownerId, contactId) DO UPDATE SET unreadCount = unreadCount + 1`,
+      bind: [ownerId, contactId, new Date().toISOString()],
+    });
+  }
+
+  clearUnread(ownerId: string, contactId: string): void {
+    this.requireDb().exec({
+      sql: "UPDATE conversations SET unreadCount = 0 WHERE ownerId = ? AND contactId = ?",
+      bind: [ownerId, contactId],
     });
   }
 
@@ -210,15 +243,20 @@ class PrimssgDBWasmEngine {
   }
 }
 
-function rowToConversation(row: Record<string, string | null>): Conversation {
+function rowToConversation(row: Record<string, string | number | null>): Conversation {
   return {
-    ownerId: row.ownerId!,
-    contactId: row.contactId!,
+    ownerId: row.ownerId as string,
+    contactId: row.contactId as string,
     lastMessage:
       row.lastMessageSender && row.lastMessageMessage && row.lastMessageStatus
-        ? { sender: row.lastMessageSender, message: row.lastMessageMessage, status: row.lastMessageStatus }
+        ? {
+            sender: row.lastMessageSender as string,
+            message: row.lastMessageMessage as string,
+            status: row.lastMessageStatus as string,
+          }
         : null,
-    createdAt: row.createdAt!,
+    unreadCount: row.unreadCount as number,
+    createdAt: row.createdAt as string,
   };
 }
 

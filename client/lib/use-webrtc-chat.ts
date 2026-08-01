@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { uuidv7 } from "uuidv7";
 import { ackMessage, fetchFailoverMessages, sendFailoverFile, sendFailoverMessage, SERVER_URL } from "./api";
+import { setLastMessage } from "./chats";
 import { addMessage as persistMessage, listMessages } from "./convos";
 import { EMPTY_MESSAGES, useMessagesStore, type ChatMessage, type MessageStatus } from "./messages-store";
 import { useSignalingStore, type SignalMessage } from "./signaling-store";
@@ -51,7 +52,9 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
 
   // Mirrors every in-memory addMessage/updateStatus into webrtc-convos so a
   // reload doesn't lose history — messages-store.ts stays the live/render
-  // source of truth, this is a write-through, not a replacement for it.
+  // source of truth, this is a write-through, not a replacement for it. Also
+  // updates the conversation's lastMessage, so the chat/page.tsx sidebar
+  // preview reflects the real latest message instead of staying blank.
   function persist(message: ChatMessage) {
     persistMessage({
       ownerId: selfId,
@@ -64,6 +67,11 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
       createdAt: message.createdAt,
       sentAt: message.status === "sent" || message.status === "read" ? new Date().toISOString() : null,
       deliveredAt: message.status === "read" ? new Date().toISOString() : null,
+    });
+    setLastMessage(selfId, peerId, {
+      sender: message.fromSelf ? selfUsername : peerUsername,
+      message: message.text ?? message.files[0]?.name ?? "",
+      status: message.status,
     });
   }
 
@@ -100,10 +108,15 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
 
   // Load persisted history on mount — messages-store.ts is in-memory only and
   // starts empty on every reload/remount; webrtc-convos is what survives that.
-  // Only seeds messages this peer thread doesn't already have in memory (a
-  // fast remount within the same session shouldn't duplicate what's already there).
+  // Only seeds messages this peer thread doesn't already have in memory. React
+  // StrictMode (dev) mounts/cleans-up/mounts again in the same tick, so without
+  // the `cancelled` guard both invocations would see an empty existingIds set
+  // (each captured before either's async listMessages call resolves) and both
+  // would insert every row, duplicating the whole history.
   useEffect(() => {
+    let cancelled = false;
     listMessages(selfId, peerId).then((rows) => {
+      if (cancelled) return;
       const existingIds = new Set(useMessagesStore.getState().byPeer[peerUsername]?.map((m) => m.messageId));
       for (const row of rows) {
         if (existingIds.has(row.messageId)) continue;
@@ -117,13 +130,20 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
         });
       }
     });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selfId, peerId, peerUsername]);
 
   // One-shot catch-up fetch on mount: anything the peer sent while this device
-  // was unreachable. Not a poll — runs once per chat-page visit.
+  // was unreachable. Not a poll — runs once per chat-page visit. `cancelled`
+  // guards against React StrictMode's dev-mode double-mount duplicating every
+  // row in memory (same reasoning as the persisted-history load above).
   useEffect(() => {
+    let cancelled = false;
     fetchFailoverMessages(peerUsername, selfUsername).then((rows) => {
+      if (cancelled) return;
       for (const row of rows) {
         addAndPersist({
           messageId: row.clientId,
@@ -136,6 +156,9 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
         ackMessage(row.id);
       }
     });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peerUsername, selfUsername]);
 
@@ -146,7 +169,9 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
     for (const m of state.byPeer[peerUsername] ?? EMPTY_MESSAGES) {
       if (m.fromSelf || m.status !== "sent") continue;
       updateStatusAndPersist(m.messageId, "read");
-      dcRef.current?.send(JSON.stringify({ kind: "read", messageId: m.messageId } satisfies DataChannelMessage));
+      if (dcRef.current?.readyState === "open") {
+        dcRef.current.send(JSON.stringify({ kind: "read", messageId: m.messageId } satisfies DataChannelMessage));
+      }
     }
   });
 

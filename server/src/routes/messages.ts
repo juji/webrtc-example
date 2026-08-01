@@ -4,6 +4,7 @@ import { Hono } from 'hono'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db } from '../db'
 import { messages as messagesTable, users } from '../db/schema'
+import { notifyUserByPush } from '../push'
 import { notifyUser } from '../signaling'
 import { BUCKET, s3 } from '../storage'
 
@@ -62,6 +63,11 @@ messagesRoute.post('/', async (c) => {
     .returning()
 
   notifyUser(toUsername, { type: 'new-message', message: row, fromUsername })
+  await notifyUserByPush(toUser.id, {
+    title: 'Primssg',
+    body: `${fromUsername}: ${text ?? ''}`,
+    url: `/chat?peer=${fromUser.id}`,
+  })
 
   return c.json({ message: row })
 })
@@ -204,6 +210,11 @@ messagesRoute.post('/attachment/confirm', async (c) => {
     .returning()
 
   notifyUser(toUsername, { type: 'new-message', message: row, fromUsername })
+  await notifyUserByPush(toUser.id, {
+    title: 'Primssg',
+    body: `${fromUsername} sent a file: ${fileName}`,
+    url: `/chat?peer=${fromUser.id}`,
+  })
 
   return c.json({ message: row })
 })

@@ -36,9 +36,16 @@ export const EMPTY_MESSAGES: ChatMessage[] = [];
 export const useMessagesStore = create<MessagesState>()((set) => ({
   byPeer: {},
 
+  // Sorted by createdAt on every insert, not just appended — messages can
+  // arrive out of chronological order (async persisted-history load racing
+  // live P2P/catch-up messages, each resolving independently), so insertion
+  // order alone doesn't reflect actual message order.
   addMessage: (peer, message) =>
     set((state) => ({
-      byPeer: { ...state.byPeer, [peer]: [...(state.byPeer[peer] ?? []), message] },
+      byPeer: {
+        ...state.byPeer,
+        [peer]: [...(state.byPeer[peer] ?? []), message].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      },
     })),
 
   updateStatus: (peer, messageId, status) =>

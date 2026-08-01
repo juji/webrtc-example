@@ -1,6 +1,6 @@
 import sqlite3InitModule, { type Database } from "@sqlite.org/sqlite-wasm";
 import { SCHEMA_SQL } from "./schema";
-import type { Contact, Conversation, ConvoMessage, KeyBundle } from "./types";
+import type { Contact, Conversation, ConvoMessage, KeyBundle, LastMessage } from "./types";
 import type { DebugQueryResult, WorkerRequest, WorkerResponse } from "./worker-protocol";
 
 const DB_FILENAME = "/primssg.sqlite3";
@@ -132,6 +132,25 @@ class PrimssgDBWasmEngine {
       bind: [conversation.ownerId, conversation.contactId, conversation.createdAt],
     });
     return conversation;
+  }
+
+  setLastMessage(ownerId: string, contactId: string, lastMessage: LastMessage): void {
+    this.requireDb().exec({
+      sql: `INSERT INTO conversations (ownerId, contactId, lastMessageSender, lastMessageMessage, lastMessageStatus, createdAt)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(ownerId, contactId) DO UPDATE SET
+              lastMessageSender = excluded.lastMessageSender,
+              lastMessageMessage = excluded.lastMessageMessage,
+              lastMessageStatus = excluded.lastMessageStatus`,
+      bind: [
+        ownerId,
+        contactId,
+        lastMessage.sender,
+        lastMessage.message,
+        lastMessage.status,
+        new Date().toISOString(),
+      ],
+    });
   }
 
   // convos

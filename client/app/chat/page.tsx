@@ -12,14 +12,24 @@ import { fetchContactRequests } from "@/lib/api";
 import type { Contact } from "@/lib/contacts";
 import { getContact } from "@/lib/contacts";
 import { getOrCreateConversation, listConversations, type Conversation } from "@/lib/chats";
+import { useMessagesStore } from "@/lib/messages-store";
 import { enablePushForUser } from "@/lib/push";
 import { useSessionStore } from "@/lib/session-store";
 import { useRequireSession } from "@/lib/use-require-session";
 
 // useSearchParams() opts the page out of static rendering unless isolated
 // behind its own Suspense boundary — this component's only job is reading
-// the ?open=notifications&id=... query params a notification click deep-links with.
-function OpenRequestsFromQuery({ onOpenRequests }: { onOpenRequests: (highlightId: string | null) => void }) {
+// the ?open=notifications&id=... and ?peer=<id> query params a push
+// notification click deep-links with.
+function OpenFromQuery({
+  userId,
+  onOpenRequests,
+  onOpenConversation,
+}: {
+  userId: string;
+  onOpenRequests: (highlightId: string | null) => void;
+  onOpenConversation: (peerId: string) => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -27,8 +37,15 @@ function OpenRequestsFromQuery({ onOpenRequests }: { onOpenRequests: (highlightI
     if (searchParams.get("open") === "notifications") {
       onOpenRequests(searchParams.get("id"));
       router.replace("/chat");
+      return;
     }
-  }, [searchParams, router, onOpenRequests]);
+    const peerId = searchParams.get("peer");
+    if (peerId) {
+      onOpenConversation(peerId);
+      router.replace("/chat");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, router, userId, onOpenRequests, onOpenConversation]);
 
   return null;
 }
@@ -61,6 +78,17 @@ export default function MockupPage() {
 
   useEffect(() => {
     refreshConversations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Re-fetch conversations (including lastMessage) whenever the live
+  // in-memory message store changes for any peer — the sidebar needs to
+  // reflect the latest message while a conversation is open, not just on
+  // mount/select. byPeer changes on every addMessage/updateStatus.
+  useEffect(() => {
+    return useMessagesStore.subscribe(() => {
+      refreshConversations();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -102,16 +130,25 @@ export default function MockupPage() {
     setSelected({ id: contact.id, username: contact.username });
   }
 
+  async function handleOpenConversation(peerId: string) {
+    if (!user) return;
+    const contact = await getContact(user.id, peerId);
+    if (!contact) return;
+    await handleSelectContact(contact);
+  }
+
   if (!user) return null;
 
   return (
     <div className="flex w-full flex-1 min-h-0">
       <Suspense fallback={null}>
-        <OpenRequestsFromQuery
+        <OpenFromQuery
+          userId={user.id}
           onOpenRequests={(highlightId) => {
             setHighlightNotificationId(highlightId);
             setShowRequests(true);
           }}
+          onOpenConversation={handleOpenConversation}
         />
       </Suspense>
       <div

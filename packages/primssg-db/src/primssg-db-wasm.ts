@@ -1,5 +1,5 @@
 import { PrimssgDB } from "./primssg-db";
-import type { Contact, Conversation, ConvoMessage, KeyBundle } from "./types";
+import type { Contact, Conversation, ConvoMessage, KeyBundle, LastMessage } from "./types";
 import type { DebugQueryResult, WorkerRequest, WorkerResponse } from "./worker-protocol";
 
 const LOCK_NAME = "primssg-db";
@@ -125,6 +125,10 @@ export class PrimssgDBWasm extends PrimssgDB {
 
   getOrCreateConversation(ownerId: string, contactId: string): Promise<Conversation> {
     return this.call("getOrCreateConversation", [ownerId, contactId]);
+  }
+
+  setLastMessage(ownerId: string, contactId: string, lastMessage: LastMessage): Promise<void> {
+    return this.call("setLastMessage", [ownerId, contactId, lastMessage]);
   }
 
   // convos

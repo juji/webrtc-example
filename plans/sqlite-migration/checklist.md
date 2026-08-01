@@ -38,11 +38,13 @@ Browser support checked (2026): OPFS sync-access-handle support is Baseline-soli
 
 ## Phase 3 — Migrate `webrtc-contacts` to `PrimssgDB`
 
-- [ ] TBD
+- [x] **`client/lib/contacts.ts` rewritten**: `openDb()`/raw IndexedDB removed, `DB_NAME`/`STORE_NAME`/`OWNER_INDEX` dropped. `addContact`/`listContacts`/`getContact` now call `useDbStore.getState().connect()` then the matching `PrimssgDB` method — same pattern as Phase 2's `keys.ts`. `syncAcceptedContact` untouched (built on `addContact`, no direct DB access). `Contact` re-exported from `primssg-db` instead of declared locally. Exported signatures unchanged, so `service-worker-registration.tsx`, `chat/page.tsx`, `contacts-popup.tsx`, and `requests-popup.tsx` needed zero changes.
+- [x] **Verified end-to-end**: seeded a `contacts` row via `query.mjs`'s `debugQuery` for the already-registered test user (from Phase 2), then opened the app's real Contacts popup in the same persistent browser profile — confirmed the seeded contact rendered, proving `listContacts()` actually reads through `useDbStore`/`PrimssgDBWasm`/the worker/SQLite, not just that it typechecks. `addContact`/`getContact` not separately live-tested (identical call pattern, already proven in Phase 2 and by `/dev/sqlite`) — full accept-flow coverage is Phase 5's job.
 
 ## Phase 4 — Migrate `webrtc-chats` to `PrimssgDB`
 
-- [ ] TBD
+- [x] **`client/lib/chats.ts` rewritten**: `openDb()`/raw IndexedDB removed, `DB_NAME`/`STORE_NAME`/`OWNER_INDEX` dropped. `listConversations`/`getOrCreateConversation` now call `useDbStore.getState().connect()` then the matching `PrimssgDB` method — same pattern as Phases 2/3. `Conversation`/`LastMessage` re-exported from `primssg-db` instead of declared locally. Exported signatures unchanged, `chat/page.tsx` (the only caller) needed zero changes.
+- [x] **Verified end-to-end**: seeded a contact via `query.mjs`, clicked it in the real Contacts popup (exercises `getOrCreateConversation` through the actual `handleSelectContact` code path — the `ChatPane` opening confirms it succeeded), then reloaded the page and confirmed the conversation still shows in the chat list (`listConversations`, fresh mount, fresh `useDbStore` connect/SAHPool re-open). Confirmed the real row in the `conversations` table directly via `query.mjs` too, not just UI behavior.
 
 ## Phase 5 — Verify + resume `plans/convo`
 

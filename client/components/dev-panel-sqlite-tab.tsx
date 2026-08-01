@@ -3,15 +3,16 @@
 import { useEffect, useState } from "react";
 import { useDbStore } from "@/lib/db-store";
 
-// Dev-only debug page — browse the PrimssgDB SQLite data without any external
+// Dev-only debug view — browse the PrimssgDB SQLite data without any external
 // viewer package (none fit: the only npm candidate bundles its own, conflicting
 // sql.js runtime — see plans/sqlite-migration). Runs debugQuery() against the
 // live connection directly. Uses the app's shared useDbStore connection rather
 // than its own instance — only one PrimssgDBWasm may hold the SAHPool-locked
 // DB per tab, so a second instance here would race the app's own connection.
-export default function DevSqlitePage() {
+export function SqliteTab() {
   const db = useDbStore((s) => s.db);
   const connected = useDbStore((s) => s.connected);
+  const locked = useDbStore((s) => s.locked);
   const connect = useDbStore((s) => s.connect);
   const [sql, setSql] = useState("SELECT * FROM keys");
   const [columns, setColumns] = useState<string[]>([]);
@@ -36,9 +37,10 @@ export default function DevSqlitePage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <h1 className="text-lg font-semibold">/dev/sqlite</h1>
-      <p className="text-sm text-zinc-500">{connected ? "Connected" : "Connecting…"}</p>
+    <div className="flex flex-col gap-3 p-3">
+      <p className="text-sm text-zinc-500">
+        {locked ? "Already open in another tab — close it and reload" : connected ? "Connected" : "Connecting…"}
+      </p>
 
       <div className="flex flex-wrap gap-2">
         {["keys", "contacts", "conversations"].map((table) => (

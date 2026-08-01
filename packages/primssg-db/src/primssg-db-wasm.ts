@@ -2,6 +2,19 @@ import { PrimssgDB } from "./primssg-db";
 import type { Contact, Conversation, KeyBundle } from "./types";
 import type { DebugQueryResult, WorkerRequest, WorkerResponse } from "./worker-protocol";
 
+const LOCK_NAME = "primssg-db";
+
+// Thrown by connect() when another tab already holds the DB lock. SAHPool
+// only allows one open Access Handle per file across the whole browser, so a
+// second tab connecting would otherwise surface SAHPool's raw
+// createSyncAccessHandle failure instead of a clean, catchable state.
+export class PrimssgDBLockedError extends Error {
+  constructor() {
+    super("primssg-db is already open in another tab");
+    this.name = "PrimssgDBLockedError";
+  }
+}
+
 // Main-thread class — callers never know a Worker exists underneath. connect()
 // spawns and owns worker.ts (which does the real sqlite3InitModule/SAHPool/SQL
 // work, since that only runs in a Worker context); every method here just
@@ -10,9 +23,14 @@ export class PrimssgDBWasm extends PrimssgDB {
   private worker: Worker | null = null;
   private nextRequestId = 0;
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+  private releaseLock: (() => void) | null = null;
 
   async connect(): Promise<void> {
     if (this.worker) return; // already connected — don't spawn a second worker
+
+    const acquired = await this.acquireLock();
+    if (!acquired) throw new PrimssgDBLockedError();
+
     this.worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
     this.worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const { id } = event.data;
@@ -24,10 +42,32 @@ export class PrimssgDBWasm extends PrimssgDB {
     };
   }
 
+  // Web Locks are held for the lifetime of the promise passed to the
+  // callback, and released automatically if the tab closes or crashes — so
+  // this also clears out a stale lock left by a tab that never called
+  // disconnect(). ifAvailable: true makes request() resolve immediately
+  // (with null) instead of queuing when another tab already holds it.
+  private acquireLock(): Promise<boolean> {
+    return new Promise((resolveAcquired) => {
+      navigator.locks.request(LOCK_NAME, { ifAvailable: true }, (lock) => {
+        if (!lock) {
+          resolveAcquired(false);
+          return Promise.resolve();
+        }
+        return new Promise<void>((releaseLock) => {
+          this.releaseLock = releaseLock;
+          resolveAcquired(true);
+        });
+      });
+    });
+  }
+
   async disconnect(): Promise<void> {
     this.worker?.terminate();
     this.worker = null;
     this.pending.clear();
+    this.releaseLock?.();
+    this.releaseLock = null;
   }
 
   private call<T>(method: WorkerRequest["method"], args: unknown[]): Promise<T> {

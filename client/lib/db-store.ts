@@ -1,9 +1,10 @@
-import { PrimssgDBWasm } from "primssg-db";
+import { PrimssgDBLockedError, PrimssgDBWasm } from "primssg-db";
 import { create } from "zustand";
 
 type DbState = {
   db: PrimssgDBWasm;
   connected: boolean;
+  locked: boolean;
   connect: () => Promise<void>;
 };
 
@@ -14,10 +15,16 @@ type DbState = {
 export const useDbStore = create<DbState>()((set, get) => ({
   db: new PrimssgDBWasm(),
   connected: false,
+  locked: false,
 
   connect: async () => {
     if (get().connected) return;
-    await get().db.connect();
-    set({ connected: true });
+    try {
+      await get().db.connect();
+      set({ connected: true });
+    } catch (err) {
+      if (err instanceof PrimssgDBLockedError) set({ locked: true });
+      else throw err;
+    }
   },
 }));

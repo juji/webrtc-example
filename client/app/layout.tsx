@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { DevPanel } from "@/components/dev-panel";
 import { MessageStatusListener } from "./message-status-listener";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
 import { SignalingConnection } from "./signaling-connection";
@@ -44,6 +45,7 @@ export default function RootLayout({
         <SignalingConnection />
         <MessageStatusListener />
         {children}
+        {process.env.NEXT_PUBLIC_DEV && <DevPanel />}
       </body>
     </html>
   );

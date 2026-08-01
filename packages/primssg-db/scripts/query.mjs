@@ -1,6 +1,8 @@
-// Drives a real headless browser to /dev/sqlite and runs a query against the
-// live PrimssgDB connection — the only way to inspect OPFS/SQLite-Wasm data,
-// since it lives entirely in browser storage with no server-side file/endpoint.
+// Drives a real headless browser to the app's dev panel and runs a query
+// against the live PrimssgDB connection — the only way to inspect
+// OPFS/SQLite-Wasm data, since it lives entirely in browser storage with no
+// server-side file/endpoint. The panel only mounts when NEXT_PUBLIC_DEV is
+// truthy, so the dev server needs that env var set.
 //
 // Uses a persistent Chromium profile (packages/primssg-db/.playwright-profile,
 // gitignored) rather than a fresh throwaway context each run — OPFS storage is
@@ -19,7 +21,8 @@ const PROFILE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 const context = await chromium.launchPersistentContext(PROFILE_DIR, {});
 const page = context.pages()[0] ?? (await context.newPage());
-await page.goto(`${BASE_URL}/dev/sqlite`);
+await page.goto(BASE_URL);
+await page.click('button:has-text("dev")');
 await page.waitForSelector("text=Connected");
 
 await page.fill("textarea", sql);

@@ -1,6 +1,6 @@
 import { PrimssgDB } from "./primssg-db";
 import type { Contact, Conversation, KeyBundle } from "./types";
-import type { WorkerRequest, WorkerResponse } from "./worker-protocol";
+import type { DebugQueryResult, WorkerRequest, WorkerResponse } from "./worker-protocol";
 
 // Main-thread class — callers never know a Worker exists underneath. connect()
 // spawns and owns worker.ts (which does the real sqlite3InitModule/SAHPool/SQL
@@ -72,5 +72,12 @@ export class PrimssgDBWasm extends PrimssgDB {
 
   getOrCreateConversation(ownerId: string, contactId: string): Promise<Conversation> {
     return this.call("getOrCreateConversation", [ownerId, contactId]);
+  }
+
+  // Dev-only raw-SQL escape hatch for /dev/sqlite. Not on PrimssgDB — only
+  // reachable through a concrete PrimssgDBWasm reference, never through code
+  // typed against the PrimssgDB interface real callers use.
+  debugQuery(sql: string): Promise<DebugQueryResult> {
+    return this.call("debugQuery", [sql]);
   }
 }

@@ -1,7 +1,7 @@
 import sqlite3InitModule, { type Database } from "@sqlite.org/sqlite-wasm";
 import { SCHEMA_SQL } from "./schema";
 import type { Contact, Conversation, KeyBundle } from "./types";
-import type { WorkerRequest, WorkerResponse } from "./worker-protocol";
+import type { DebugQueryResult, WorkerRequest, WorkerResponse } from "./worker-protocol";
 
 const DB_FILENAME = "/primssg.sqlite3";
 
@@ -132,6 +132,19 @@ class PrimssgDBWasmEngine {
       bind: [conversation.ownerId, conversation.contactId, conversation.createdAt],
     });
     return conversation;
+  }
+
+  // Dev-only raw-SQL escape hatch for /dev/sqlite — see worker-protocol.ts.
+  // Not exposed on PrimssgDB; real callers never reach this.
+  debugQuery(sql: string): DebugQueryResult {
+    const columns: string[] = [];
+    const rows = this.requireDb().exec({
+      sql,
+      rowMode: "array",
+      returnValue: "resultRows",
+      columnNames: columns,
+    }) as unknown as unknown[][];
+    return { columns, rows };
   }
 }
 

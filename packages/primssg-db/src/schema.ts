@@ -28,4 +28,21 @@ CREATE TABLE IF NOT EXISTS conversations (
   createdAt TEXT NOT NULL,
   PRIMARY KEY (ownerId, contactId)
 );
+
+CREATE TABLE IF NOT EXISTS messages (
+  ownerId TEXT NOT NULL,
+  threadId TEXT NOT NULL,
+  messageId TEXT NOT NULL,
+  senderId TEXT NOT NULL,
+  senderUsername TEXT NOT NULL,
+  text TEXT,
+  files TEXT NOT NULL,
+  status TEXT NOT NULL,
+  createdAt TEXT NOT NULL,
+  sentAt TEXT,
+  deliveredAt TEXT,
+  PRIMARY KEY (ownerId, messageId)
+);
+
+CREATE INDEX IF NOT EXISTS messages_thread ON messages (ownerId, threadId);
 `;

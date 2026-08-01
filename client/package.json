@@ -12,7 +12,7 @@
     "@noble/post-quantum": "^0.6.1",
     "jsqr": "^1.4.0",
     "lucide-react": "^1.28.0",
-    "next": "^16.3.0-canary.105",
+    "next": "^16.2.12",
     "primssg-db": "workspace:*",
     "qrcode": "^1.5.4",
     "react": "19.2.4",

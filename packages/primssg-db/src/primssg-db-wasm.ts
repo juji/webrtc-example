@@ -1,5 +1,5 @@
 import { PrimssgDB } from "./primssg-db";
-import type { Contact, Conversation, KeyBundle } from "./types";
+import type { Contact, Conversation, ConvoMessage, KeyBundle } from "./types";
 import type { DebugQueryResult, WorkerRequest, WorkerResponse } from "./worker-protocol";
 
 const LOCK_NAME = "primssg-db";
@@ -24,10 +24,23 @@ export class PrimssgDBWasm extends PrimssgDB {
   private nextRequestId = 0;
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   private releaseLock: (() => void) | null = null;
+  private connecting: Promise<void> | null = null;
 
-  async connect(): Promise<void> {
-    if (this.worker) return; // already connected — don't spawn a second worker
+  // Guarded against concurrent calls with an in-flight promise, not just a
+  // this.worker check — two connect() calls made back-to-back (e.g. React
+  // effects firing twice under Strict Mode) would otherwise both see
+  // this.worker === null and both try to acquire the lock, and the second
+  // one would see the first as "another tab" holding it and fail.
+  connect(): Promise<void> {
+    if (this.worker) return Promise.resolve();
+    if (this.connecting) return this.connecting;
+    this.connecting = this.doConnect().finally(() => {
+      this.connecting = null;
+    });
+    return this.connecting;
+  }
 
+  private async doConnect(): Promise<void> {
     const acquired = await this.acquireLock();
     if (!acquired) throw new PrimssgDBLockedError();
 
@@ -112,6 +125,16 @@ export class PrimssgDBWasm extends PrimssgDB {
 
   getOrCreateConversation(ownerId: string, contactId: string): Promise<Conversation> {
     return this.call("getOrCreateConversation", [ownerId, contactId]);
+  }
+
+  // convos
+
+  addMessage(message: ConvoMessage): Promise<void> {
+    return this.call("addMessage", [message]);
+  }
+
+  listMessages(ownerId: string, threadId: string): Promise<ConvoMessage[]> {
+    return this.call("listMessages", [ownerId, threadId]);
   }
 
   // Dev-only raw-SQL escape hatch for /dev/sqlite. Not on PrimssgDB — only

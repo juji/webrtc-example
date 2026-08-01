@@ -1,6 +1,6 @@
 import sqlite3InitModule, { type Database } from "@sqlite.org/sqlite-wasm";
 import { SCHEMA_SQL } from "./schema";
-import type { Contact, Conversation, KeyBundle } from "./types";
+import type { Contact, Conversation, ConvoMessage, KeyBundle } from "./types";
 import type { DebugQueryResult, WorkerRequest, WorkerResponse } from "./worker-protocol";
 
 const DB_FILENAME = "/primssg.sqlite3";
@@ -134,6 +134,49 @@ class PrimssgDBWasmEngine {
     return conversation;
   }
 
+  // convos
+
+  addMessage(message: ConvoMessage): void {
+    this.requireDb().exec({
+      sql: `INSERT INTO messages (ownerId, threadId, messageId, senderId, senderUsername, text, files, status, createdAt, sentAt, deliveredAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(ownerId, messageId) DO UPDATE SET
+              threadId = excluded.threadId,
+              senderId = excluded.senderId,
+              senderUsername = excluded.senderUsername,
+              text = excluded.text,
+              files = excluded.files,
+              status = excluded.status,
+              createdAt = excluded.createdAt,
+              sentAt = excluded.sentAt,
+              deliveredAt = excluded.deliveredAt`,
+      bind: [
+        message.ownerId,
+        message.threadId,
+        message.messageId,
+        message.sender.id,
+        message.sender.username,
+        message.text ?? null,
+        JSON.stringify(message.files),
+        message.status,
+        message.createdAt,
+        message.sentAt,
+        message.deliveredAt,
+      ],
+    });
+  }
+
+  listMessages(ownerId: string, threadId: string): ConvoMessage[] {
+    const rows = this.requireDb().exec({
+      sql: `SELECT ownerId, threadId, messageId, senderId, senderUsername, text, files, status, createdAt, sentAt, deliveredAt
+            FROM messages WHERE ownerId = ? AND threadId = ? ORDER BY createdAt`,
+      bind: [ownerId, threadId],
+      rowMode: "object",
+      returnValue: "resultRows",
+    }) as unknown as Record<string, string | null>[];
+    return rows.map(rowToConvoMessage);
+  }
+
   // Dev-only raw-SQL escape hatch for /dev/sqlite — see worker-protocol.ts.
   // Not exposed on PrimssgDB; real callers never reach this.
   debugQuery(sql: string): DebugQueryResult {
@@ -157,6 +200,21 @@ function rowToConversation(row: Record<string, string | null>): Conversation {
         ? { sender: row.lastMessageSender, message: row.lastMessageMessage, status: row.lastMessageStatus }
         : null,
     createdAt: row.createdAt!,
+  };
+}
+
+function rowToConvoMessage(row: Record<string, string | null>): ConvoMessage {
+  return {
+    ownerId: row.ownerId!,
+    threadId: row.threadId!,
+    messageId: row.messageId!,
+    sender: { id: row.senderId!, username: row.senderUsername! },
+    text: row.text ?? undefined,
+    files: JSON.parse(row.files!),
+    status: row.status as ConvoMessage["status"],
+    createdAt: row.createdAt!,
+    sentAt: row.sentAt,
+    deliveredAt: row.deliveredAt,
   };
 }
 

@@ -21,3 +21,16 @@ export type Conversation = {
   lastMessage: LastMessage | null;
   createdAt: string;
 };
+
+export type ConvoMessage = {
+  ownerId: string; // which locally-registered identity this row belongs to
+  threadId: string; // a contact's user id (1:1) or a group id (group chat)
+  messageId: string; // ties this row back to the live message (use-webrtc-chat.ts)
+  sender: { id: string; username: string }; // id === ownerId if fromSelf
+  text?: string;
+  files: { name: string; type: string; url: string }[];
+  status: "sending" | "in-transit" | "sent" | "read";
+  createdAt: string;
+  sentAt: string | null;
+  deliveredAt: string | null;
+};

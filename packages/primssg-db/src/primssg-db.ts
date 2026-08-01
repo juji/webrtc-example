@@ -1,4 +1,4 @@
-import type { Contact, Conversation, KeyBundle } from "./types";
+import type { Contact, Conversation, ConvoMessage, KeyBundle } from "./types";
 
 export abstract class PrimssgDB {
   abstract connect(): Promise<void>;
@@ -16,4 +16,8 @@ export abstract class PrimssgDB {
   // chats
   abstract listConversations(ownerId: string): Promise<Conversation[]>;
   abstract getOrCreateConversation(ownerId: string, contactId: string): Promise<Conversation>;
+
+  // convos
+  abstract addMessage(message: ConvoMessage): Promise<void>;
+  abstract listMessages(ownerId: string, threadId: string): Promise<ConvoMessage[]>;
 }

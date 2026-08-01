@@ -1,7 +1,3 @@
-## ON HOLD
-
-Blocked on `plans/dexie-migration` — every store this plan touches (`webrtc-keys`, `webrtc-contacts`, `webrtc-chats`, and the not-yet-built `webrtc-convos`) is being migrated from raw IndexedDB to Dexie. Writing Phase 1's `convos.ts` against raw IndexedDB now would just mean rewriting it again once Dexie lands — resume this plan after `plans/dexie-migration` is done.
-
 ## Context
 
 `ChatPane` (`client/components/chat-pane.tsx`, built in plans/contacts Phase 8) is a UI-only mockup — `messages`/`connected` are passed in from `chat/page.tsx` as `[]`/`false`. `useWebRtcChat` (`client/lib/use-webrtc-chat.ts`) already has the real WebRTC/signaling/failover logic, proven out in `chat-old/[username]/page.tsx`. This plan is wiring the two together — no new messaging functionality, just connecting what already exists.
@@ -19,10 +15,10 @@ Found while starting this plan: `webrtc-keys` (`client/lib/keys.ts`), `webrtc-co
 - [x] Verified: `client/` and `server/` typecheck clean; curl-verified `/auth/challenge` returns the correct `userId` for a real registered user
 - [x] **Bug found and fixed, adjacent but not this migration:** a browser with notification permission already `"granted"` (from a prior account) never re-subscribed to push for a new account, since the enable banner/`enablePushForUser()` call only fires on `"default"` permission — surfaced as the new account never receiving push. Fixed in `client/app/chat/page.tsx`; full detail in `plans/contacts/checklist.md` Phase 5.
 
-## Phase 1 — `webrtc-convos` IndexedDB store
+## Phase 1 — `webrtc-convos` messages table
 
 detail: [phase-1-convos-schema.md](phase-1-convos-schema.md)
-- [ ] **`webrtc-convos` IndexedDB store** (`client/lib/convos.ts`, new) + `ConvoMessage` type + `addMessage`/`listMessages`
+- [x] **`messages` table on `PrimssgDB`** (`packages/primssg-db`) + `ConvoMessage` type + `addMessage`/`listMessages`, plus `client/lib/convos.ts` (new) wrapping them via `useDbStore` — built and verified as `plans/sqlite-migration` Phase 5; full detail there
 
 ## Phase 2 — `messages-store.ts` rebuild
 

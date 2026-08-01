@@ -1,6 +1,6 @@
-## `webrtc-convos` IndexedDB store
+## `webrtc-convos` messages table (`PrimssgDB`)
 
-New file: `client/lib/convos.ts`. Same `openDb()`/`onupgradeneeded` scaffolding as `contacts.ts`/`chats.ts`, but the index differs from both — see Storage details.
+New file: `client/lib/convos.ts`. Same shape as the already-migrated `contacts.ts`/`chats.ts` (`plans/sqlite-migration` Phases 3-4): a thin wrapper calling `useDbStore.getState().connect()` then a `PrimssgDB` method — no direct storage access from `client/`. The actual persistence lives in `packages/primssg-db`, not here.
 
 ### Type
 
@@ -21,11 +21,36 @@ export type ConvoMessage = {
 
 ### Storage details
 
-- `DB_NAME = "webrtc-convos"`, `STORE_NAME = "messages"`
-- keyPath: `["ownerId", "messageId"]` — unique per row, matches `contacts.ts`/`chats.ts`'s pattern of keying on `[ownerId, <the thing this row is about>]`
-- index: `CONVO_INDEX`, on `["ownerId", "threadId"]`. `convos.ts` holds one row per *message*, and the real read pattern is always "this owner's messages in this one thread" (`ChatPane` opening a thread, 1:1 or group) — indexing the exact lookup key makes `listMessages` a direct fetch instead of a scan-and-filter. `threadId` unifies 1:1 and group lookups under one index, so no separate index is needed per thread type.
-- `addMessage(message: ConvoMessage): Promise<void>` — `put`, keyed via the compound keyPath
-- `listMessages(ownerId: string, threadId: string): Promise<ConvoMessage[]>` — `index(CONVO_INDEX).getAll([ownerId, threadId])`, a direct lookup, no client-side filtering
+Follows the exact pattern `plans/sqlite-migration` Phase 0 established for `keys`/`contacts`/`conversations` — a table in `packages/primssg-db/src/schema.ts`, two new abstract methods on `PrimssgDB`, and a real implementation in `PrimssgDBWasmEngine` (`packages/primssg-db/src/worker.ts`). Nothing new architecturally, just one more table/method pair on the same interface.
+
+- **`packages/primssg-db/src/types.ts`**: add `ConvoMessage` (moves here from being client-only — same reasoning as `Contact`/`Conversation`/`KeyBundle` already living there, not in `client/`)
+- **`packages/primssg-db/src/schema.ts`**: new `messages` table —
+  ```sql
+  CREATE TABLE IF NOT EXISTS messages (
+    ownerId TEXT NOT NULL,
+    threadId TEXT NOT NULL,
+    messageId TEXT NOT NULL,
+    senderId TEXT NOT NULL,
+    senderUsername TEXT NOT NULL,
+    text TEXT,
+    files TEXT NOT NULL,          -- JSON-serialized { name, type, url }[]
+    status TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    sentAt TEXT,
+    deliveredAt TEXT,
+    PRIMARY KEY (ownerId, messageId)
+  );
+  CREATE INDEX IF NOT EXISTS messages_thread ON messages (ownerId, threadId);
+  ```
+  `sender: { id, username }` flattens to `senderId`/`senderUsername` columns (SQL has no nested-object column type) and reassembles into `{ id, username }` in the engine's row-mapping code, same as any other read. `files` has no fixed shape SQLite can express as columns — stored as a JSON `TEXT` blob, `JSON.parse`/`JSON.stringify` at the engine boundary, same treatment `LastMessage` already gets inside `conversations`.
+- **`packages/primssg-db/src/primssg-db.ts`**: add to the abstract class —
+  ```ts
+  abstract addMessage(message: ConvoMessage): Promise<void>;
+  abstract listMessages(ownerId: string, threadId: string): Promise<ConvoMessage[]>;
+  ```
+- **`worker.ts`**: `addMessage` is an `INSERT OR REPLACE` on `(ownerId, messageId)` (upsert — a message's `status`/`sentAt`/`deliveredAt` get rewritten in place as it moves through its lifecycle, not re-inserted). `listMessages` is `SELECT * FROM messages WHERE ownerId = ? AND threadId = ? ORDER BY createdAt` — the `messages_thread` index makes this a direct index lookup, not a scan.
+- **`worker-protocol.ts`**: `MethodName` union picks up the two new methods automatically (derived from `keyof PrimssgDB`, per `plans/sqlite-migration` Phase 0 — no separate edit needed there)
+- **`client/lib/convos.ts`**: `addMessage(message)` / `listMessages(ownerId, threadId)`, each `await useDbStore.getState().connect()` then `useDbStore.getState().db.<method>(...)` — identical shape to `chats.ts`/`contacts.ts`. `ConvoMessage` re-exported from `primssg-db`, not declared locally.
 
 ### Field-by-field reasoning
 

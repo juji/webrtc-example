@@ -35,6 +35,7 @@ export function DevPanel() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<TabKey>("sqlite");
   const [corner, setCorner] = useState<Corner>("bottom-right");
+  const [fullscreen, setFullscreen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const dragStart = useRef<{ x: number; y: number; moved: boolean } | null>(null);
@@ -101,7 +102,11 @@ export function DevPanel() {
 
   return (
     <div
-      className={`fixed z-50 flex max-h-[70vh] w-[min(90vw,32rem)] flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900 ${CORNER_CLASSES[corner]}`}
+      className={
+        fullscreen
+          ? "fixed inset-4 z-50 flex flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900"
+          : `fixed z-50 flex max-h-[70vh] w-[min(90vw,32rem)] flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900 ${CORNER_CLASSES[corner]}`
+      }
     >
       <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10">
         <div className="flex">
@@ -119,9 +124,14 @@ export function DevPanel() {
             </button>
           ))}
         </div>
-        <button onClick={() => setOpen(false)} className="px-3 py-2 text-sm text-zinc-500">
-          ×
-        </button>
+        <div className="flex">
+          <button onClick={() => setFullscreen((v) => !v)} className="px-3 py-2 text-sm text-blue-400">
+            {fullscreen ? "⤢" : "⤡"}
+          </button>
+          <button onClick={() => setOpen(false)} className="px-3 py-2 text-sm text-red-600">
+            ×
+          </button>
+        </div>
       </div>
       <div className="overflow-auto">
         <ActiveTab />

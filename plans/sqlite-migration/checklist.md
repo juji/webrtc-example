@@ -25,18 +25,23 @@ Browser support checked (2026): OPFS sync-access-handle support is Baseline-soli
 - [x] Typechecks clean under both configs (`client/node_modules/.bin/tsc --noEmit -p packages/primssg-db/tsconfig.json` and `...tsconfig.worker.json` — `primssg-db` has no `typescript` devDependency of its own yet, checked via `client/`'s compiler as a stand-in)
 - [ ] **Second-tab detection not yet built.** SAHPool locks the DB to one tab; a second tab needs to be detected *before* attempting to connect, not left to surface SAHPool's raw acquisition error. Plan: each tab requests a `navigator.locks.request("primssg-db", { ifAvailable: true }, ...)` Web Lock before calling `connect()` — the tab that gets it connects normally, any tab that gets `null` back shows an "already open in another tab" state instead (same pattern as Notion/Figma/Linear's single-instance local apps).
 
-## Phase 1 — Migrate `webrtc-keys` to `PrimssgDB`
+## Phase 1 — Shared `PrimssgDBWasm` connection (Zustand store)
+
+- [x] **`client/lib/db-store.ts`** — Zustand store (matching `session-store.ts`/`signaling-store.ts`'s existing pattern) holding one `PrimssgDBWasm` instance (constructed at store creation, not connected yet — the constructor just allocates the object, no worker spawned until `connect()` runs) plus a `connected: boolean` and a `connect()` action. `connect()` no-ops if already `connected` (mirrors `PrimssgDBWasm.connect()`'s own internal guard against a second worker spawn, so the store's guard isn't the only thing preventing a double-connect, just an added one). `keys.ts`/`contacts.ts`/`chats.ts` will read `db` from here in Phases 2-4 instead of each opening their own connection — matches this repo's CLAUDE.md convention of using Zustand for cross-component runtime state.
+- [x] **`/dev/sqlite` switched to `useDbStore`**, dropped its own standalone `PrimssgDBWasm` instance — resolves the two-instance same-tab race flagged earlier (only one `PrimssgDBWasm` per tab now, ever). No longer calls `disconnect()` on unmount either, since the connection is the whole app's now, not the debug page's own. Re-verified working via `bun run packages/primssg-db/scripts/query.mjs` against the live store.
+
+## Phase 2 — Migrate `webrtc-keys` to `PrimssgDB`
 
 - [ ] TBD
 
-## Phase 2 — Migrate `webrtc-contacts` to `PrimssgDB`
+## Phase 3 — Migrate `webrtc-contacts` to `PrimssgDB`
 
 - [ ] TBD
 
-## Phase 3 — Migrate `webrtc-chats` to `PrimssgDB`
+## Phase 4 — Migrate `webrtc-chats` to `PrimssgDB`
 
 - [ ] TBD
 
-## Phase 4 — Verify + resume `plans/convo`
+## Phase 5 — Verify + resume `plans/convo`
 
 - [ ] TBD

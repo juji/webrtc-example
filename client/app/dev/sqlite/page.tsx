@@ -1,34 +1,31 @@
 "use client";
 
-import { PrimssgDBWasm } from "primssg-db";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useDbStore } from "@/lib/db-store";
 
 // Dev-only debug page — browse the PrimssgDB SQLite data without any external
 // viewer package (none fit: the only npm candidate bundles its own, conflicting
 // sql.js runtime — see plans/sqlite-migration). Runs debugQuery() against the
-// live connection directly.
+// live connection directly. Uses the app's shared useDbStore connection rather
+// than its own instance — only one PrimssgDBWasm may hold the SAHPool-locked
+// DB per tab, so a second instance here would race the app's own connection.
 export default function DevSqlitePage() {
-  const dbRef = useRef<PrimssgDBWasm | null>(null);
-  const [connected, setConnected] = useState(false);
+  const db = useDbStore((s) => s.db);
+  const connected = useDbStore((s) => s.connected);
+  const connect = useDbStore((s) => s.connect);
   const [sql, setSql] = useState("SELECT * FROM keys");
   const [columns, setColumns] = useState<string[]>([]);
   const [rows, setRows] = useState<unknown[][]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const db = new PrimssgDBWasm();
-    dbRef.current = db;
-    db.connect().then(() => setConnected(true));
-    return () => {
-      db.disconnect();
-    };
-  }, []);
+    connect();
+  }, [connect]);
 
   async function runQuery() {
-    if (!dbRef.current) return;
     setError(null);
     try {
-      const result = await dbRef.current.debugQuery(sql);
+      const result = await db.debugQuery(sql);
       setColumns(result.columns);
       setRows(result.rows);
     } catch (err) {

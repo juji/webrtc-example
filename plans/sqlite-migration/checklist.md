@@ -18,26 +18,25 @@ Browser support checked (2026): OPFS sync-access-handle support is Baseline-soli
   - `addContact(contact)` / `listContacts(ownerId)` / `getContact(ownerId, id)` — contacts
   - `listConversations(ownerId)` / `getOrCreateConversation(ownerId, contactId)` — chats
   - Types (`Contact`, `Conversation`, `KeyBundle`, `LastMessage`) ported to `packages/primssg-db/src/types.ts`, matching the client's existing shapes.
-- [x] **`PrimssgDBWasm` implementation written** (`packages/primssg-db/src/primssg-db-wasm.ts`) — all 7 methods implemented against real SQL (schema in `packages/primssg-db/src/schema.ts`: `keys`, `contacts`, `conversations` tables, columns matching the TS types 1:1). `connect()` currently opens an in-memory `sqlite3.oo1.DB` (`@sqlite.org/sqlite-wasm`, added as a `primssg-db` dependency) — **not yet persisted, not yet worker/SAHPool-backed**, that's Phase 1. Every other method only touches `this.db`, so Phase 1 only needs to change `connect()`'s body, nothing else.
-- [x] Typechecks clean (`client/node_modules/.bin/tsc --noEmit -p packages/primssg-db/tsconfig.json` — `primssg-db` has no `typescript` devDependency of its own yet, checked via `client/`'s compiler as a stand-in)
+- [x] **`PrimssgDBWasm` (`packages/primssg-db/src/primssg-db-wasm.ts`) is a main-thread proxy — no SQL, no SQLite import.** It owns a single `Worker` (spawned lazily by `connect()`, guarded against a second spawn if already connected) and implements every `PrimssgDB` method by sending `{ id, method, args }` over `postMessage` and returning a `Promise` that resolves when the matching response arrives. A `pending` map (request id → that promise's `resolve`/`reject`) correlates each reply back to its call, since worker responses can arrive out of order relative to when requests were sent. `disconnect()` terminates the worker and clears any still-pending requests.
+- [x] **`worker.ts` is the only file that touches SQLite.** Runs inside the dedicated worker `primssg-db-wasm.ts` spawns; never imported on the main thread. Holds `PrimssgDBWasmEngine`, a class with the real implementation of every `PrimssgDB` method as plain synchronous SQL calls (schema in `packages/primssg-db/src/schema.ts`: `keys`, `contacts`, `conversations` tables, columns matching the TS types 1:1) against a `Database` opened via `sqlite3.installOpfsSAHPoolVfs(...)` + `poolUtil.OpfsSAHPoolDb(...)` (`@sqlite.org/sqlite-wasm`) — real OPFS persistence, survives reloads. The worker's own `onmessage` handler dispatches each incoming request to the matching engine method and posts a `{ id, ok, result }`/`{ id, ok: false, error }` response back.
+- [x] **`worker-protocol.ts`** defines the shared `WorkerRequest`/`WorkerResponse` types both sides of the `postMessage` boundary use, derived from `PrimssgDB`'s own method names (excluding `connect`/`disconnect`, which the worker's lifecycle handles on its own).
+- [x] **Two separate tsconfigs**: `tsconfig.json` (main-thread files, `DOM` lib) and `tsconfig.worker.json` (`worker.ts` + its dependencies, `WebWorker` lib) — `self`/`postMessage` mean different things under each lib, and `worker.ts` needs the `WebWorker` global types to typecheck correctly rather than silently resolving against `Window`.
+- [x] Typechecks clean under both configs (`client/node_modules/.bin/tsc --noEmit -p packages/primssg-db/tsconfig.json` and `...tsconfig.worker.json` — `primssg-db` has no `typescript` devDependency of its own yet, checked via `client/`'s compiler as a stand-in)
+- [ ] **Second-tab detection not yet built.** SAHPool locks the DB to one tab; a second tab needs to be detected *before* attempting to connect, not left to surface SAHPool's raw acquisition error. Plan: each tab requests a `navigator.locks.request("primssg-db", { ifAvailable: true }, ...)` Web Lock before calling `connect()` — the tab that gets it connects normally, any tab that gets `null` back shows an "already open in another tab" state instead (same pattern as Notion/Figma/Linear's single-instance local apps).
 
-## Phase 1 — Worker + OPFS wiring for the web backend
-
-- [ ] TBD
-- [ ] **Second-tab detection.** SAHPool locks the DB to one tab; a second tab must be detected *before* attempting to open it, not left to surface SAHPool's raw acquisition error. Each tab requests a `navigator.locks.request("primssg-db", { ifAvailable: true }, ...)` Web Lock on load — the tab that gets it opens the DB normally, any tab that gets `null` back shows an "already open in another tab" state instead (same pattern as Notion/Figma/Linear's single-instance local apps).
-
-## Phase 2 — Migrate `webrtc-keys` to `PrimssgDB`
-
-- [ ] TBD
-
-## Phase 3 — Migrate `webrtc-contacts` to `PrimssgDB`
+## Phase 1 — Migrate `webrtc-keys` to `PrimssgDB`
 
 - [ ] TBD
 
-## Phase 4 — Migrate `webrtc-chats` to `PrimssgDB`
+## Phase 2 — Migrate `webrtc-contacts` to `PrimssgDB`
 
 - [ ] TBD
 
-## Phase 5 — Verify + resume `plans/convo`
+## Phase 3 — Migrate `webrtc-chats` to `PrimssgDB`
+
+- [ ] TBD
+
+## Phase 4 — Verify + resume `plans/convo`
 
 - [ ] TBD

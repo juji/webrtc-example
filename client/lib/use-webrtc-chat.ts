@@ -63,7 +63,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
       serverId: message.serverId,
       sender: message.fromSelf ? { id: selfId, username: selfUsername } : { id: peerId, username: peerUsername },
       text: message.text,
-      files: message.files,
+      file: message.file,
       status: message.status,
       createdAt: message.createdAt,
       sentAt: message.status === "sent" || message.status === "read" ? new Date().toISOString() : null,
@@ -71,7 +71,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
     });
     setLastMessage(selfId, peerId, {
       sender: message.fromSelf ? selfUsername : peerUsername,
-      message: message.text ?? message.files[0]?.name ?? "",
+      message: message.text ?? message.file?.name ?? "",
       status: message.status,
     });
   }
@@ -92,13 +92,13 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
   // id isn't tracked client-side — message-acked carries it directly, so the
   // sender's final DELETE works even after closing and reopening the app.
   function dispatchTextViaServer(messageId: string, text: string) {
-    sendFailoverMessage({ clientId: messageId, fromUsername: selfUsername, toUsername: peerUsername, text }).then(
-      () => updateStatusAndPersist(messageId, "sent"),
+    sendFailoverMessage({ clientId: messageId, toUsername: peerUsername, text }).then(() =>
+      updateStatusAndPersist(messageId, "sent"),
     );
   }
 
   function dispatchFileViaServer(messageId: string, file: File) {
-    sendFailoverFile({ clientId: messageId, fromUsername: selfUsername, toUsername: peerUsername, file }).then(() =>
+    sendFailoverFile({ clientId: messageId, toUsername: peerUsername, file }).then(() =>
       updateStatusAndPersist(messageId, "sent"),
     );
   }
@@ -133,17 +133,17 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
         // a P2P transfer, whose bytes only otherwise live in that dead blob.
         // Re-fetch from OPFS and mint a fresh URL, or drop the file if there's
         // no stored copy (relay uploads never store one; nothing to rehydrate).
-        let files = row.files;
-        if (files[0]?.url.startsWith("blob:")) {
+        let file = row.file;
+        if (file?.url.startsWith("blob:")) {
           const blob = await getFileBlob(row.messageId);
-          files = blob ? [{ ...files[0], url: URL.createObjectURL(blob) }] : [];
+          file = blob ? { ...file, url: URL.createObjectURL(blob) } : undefined;
         }
         if (cancelled) return;
         if (useMessagesStore.getState().byPeer[peerUsername]?.some((m) => m.messageId === row.messageId)) continue;
         addMessage(peerUsername, {
           messageId: row.messageId,
           text: row.text,
-          files,
+          file,
           fromSelf: row.sender.id === selfId,
           status: row.status,
           createdAt: row.createdAt,
@@ -162,14 +162,14 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
   // row in memory (same reasoning as the persisted-history load above).
   useEffect(() => {
     let cancelled = false;
-    fetchFailoverMessages(peerUsername, selfUsername).then((rows) => {
+    fetchFailoverMessages(peerUsername).then((rows) => {
       if (cancelled) return;
       for (const row of rows) {
         addAndPersist({
           messageId: row.clientId,
           serverId: row.id,
           text: row.text ?? undefined,
-          files: row.fileUrl ? [{ name: row.fileName!, type: row.fileType!, url: row.fileUrl }] : [],
+          file: row.file ? JSON.parse(row.file) : undefined,
           fromSelf: false,
           status: "sent",
           createdAt: row.createdAt,
@@ -259,7 +259,6 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
             addAndPersist({
               messageId: message.messageId,
               text: message.text,
-              files: [],
               fromSelf: false,
               status: "sent",
               createdAt: new Date().toISOString(),
@@ -276,7 +275,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
             storeFileBlob(message.messageId, blob);
             addAndPersist({
               messageId: message.messageId,
-              files: [{ name: transfer.name, type: transfer.type, url }],
+              file: { name: transfer.name, type: transfer.type, url },
               fromSelf: false,
               status: "sent",
               createdAt: new Date().toISOString(),
@@ -345,7 +344,6 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
     addAndPersist({
       messageId,
       text,
-      files: [],
       fromSelf: true,
       status: "sending",
       createdAt: new Date().toISOString(),
@@ -368,7 +366,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
     storeFileBlob(messageId, file);
     addAndPersist({
       messageId,
-      files: [{ name: file.name, type: file.type, url }],
+      file: { name: file.name, type: file.type, url },
       fromSelf: true,
       status: "sending",
       createdAt: new Date().toISOString(),

@@ -78,7 +78,7 @@ export function ChatPane({
   const galleryItems = useMemo(() => {
     const items: (VistaImgConfig | VistaVideoConfig)[] = [];
     for (const m of messages) {
-      const file = m.files[0];
+      const file = m.file;
       if (!file) continue;
       if (file.type.startsWith("image/")) {
         items.push({ src: file.url, alt: file.name });
@@ -246,6 +246,7 @@ export function ChatPane({
         {messages.map((m, i) => {
           const prev = messages[i - 1];
           const showDateSeparator = !prev || !isSameDay(prev.createdAt, m.createdAt);
+          const file = m.file;
           return (
             <li key={m.messageId} className="contents">
               {showDateSeparator && (
@@ -260,37 +261,37 @@ export function ChatPane({
                     : "self-start rounded-bl-md bg-black/5 text-black dark:bg-white/10 dark:text-zinc-50"
                 }`}
               >
-                {m.files[0] ? (
-                  m.files[0].type.startsWith("audio/") ? (
-                    <audio controls src={m.files[0].url} className="h-10 max-w-64" />
-                  ) : m.files[0].type.startsWith("image/") ? (
+                {file ? (
+                  file.type.startsWith("audio/") ? (
+                    <audio controls src={file.url} className="h-10 max-w-64" />
+                  ) : file.type.startsWith("image/") ? (
                     <div className="flex flex-col gap-1.5">
-                      <button type="button" onClick={() => openGallery(m.files[0].url)} className="block">
+                      <button type="button" onClick={() => openGallery(file.url)} className="block">
                         {/* eslint-disable-next-line @next/next/no-img-element -- object/remote URL, not a static asset Next can optimize */}
                         <img
-                          src={m.files[0].url}
-                          alt={m.files[0].name}
+                          src={file.url}
+                          alt={file.name}
                           className="max-h-64 max-w-64 rounded-lg object-cover"
                         />
                       </button>
                       <button
                         type="button"
-                        onClick={() => downloadFile(m.files[0].url, m.files[0].name)}
+                        onClick={() => downloadFile(file.url, file.name)}
                         className="flex items-center justify-center gap-1.5 rounded-lg bg-black/10 py-1.5 text-sm font-medium hover:bg-black/15 dark:bg-white/10 dark:hover:bg-white/15"
                       >
                         <Download className="h-3.5 w-3.5" />
                         Download
                       </button>
                     </div>
-                  ) : m.files[0].type.startsWith("video/") ? (
+                  ) : file.type.startsWith("video/") ? (
                     <div className="flex flex-col gap-1.5">
                       <button
                         type="button"
-                        onClick={() => openGallery(m.files[0].url)}
+                        onClick={() => openGallery(file.url)}
                         className="relative block max-h-64 max-w-64"
                       >
                         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                        <video src={m.files[0].url} muted className="max-h-64 max-w-64 rounded-lg object-cover" />
+                        <video src={file.url} muted className="max-h-64 max-w-64 rounded-lg object-cover" />
                         <span className="absolute inset-0 flex items-center justify-center">
                           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white">
                             <Video className="h-4 w-4" />
@@ -299,7 +300,7 @@ export function ChatPane({
                       </button>
                       <button
                         type="button"
-                        onClick={() => downloadFile(m.files[0].url, m.files[0].name)}
+                        onClick={() => downloadFile(file.url, file.name)}
                         className="flex items-center justify-center gap-1.5 rounded-lg bg-black/10 py-1.5 text-sm font-medium hover:bg-black/15 dark:bg-white/10 dark:hover:bg-white/15"
                       >
                         <Download className="h-3.5 w-3.5" />
@@ -309,11 +310,11 @@ export function ChatPane({
                   ) : (
                     <button
                       type="button"
-                      onClick={() => downloadFile(m.files[0].url, m.files[0].name)}
+                      onClick={() => downloadFile(file.url, file.name)}
                       className="flex items-center gap-2 text-sm underline"
                     >
                       <Paperclip className="h-3.5 w-3.5 shrink-0" />
-                      {m.files[0].name}
+                      {file.name}
                     </button>
                   )
                 ) : (

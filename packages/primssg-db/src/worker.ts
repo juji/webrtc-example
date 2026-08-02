@@ -46,6 +46,16 @@ class PrimssgDBWasmEngine {
     if (!messagesColumns.some((c) => c.name === "serverId")) {
       db.exec("ALTER TABLE messages ADD COLUMN serverId TEXT");
     }
+    if (!messagesColumns.some((c) => c.name === "file")) {
+      db.exec("ALTER TABLE messages ADD COLUMN file TEXT")
+      if (messagesColumns.some((c) => c.name === "files")) {
+        // Old rows stored a files JSON array (never more than one element in
+        // practice — see plans/encryption's "wrong type" discussion) — carry
+        // element 0 forward into the new singular column, then drop the old one.
+        db.exec(`UPDATE messages SET file = json_extract(files, '$[0]') WHERE files != '[]'`)
+        db.exec("ALTER TABLE messages DROP COLUMN files")
+      }
+    }
   }
 
   disconnect(): void {
@@ -200,7 +210,7 @@ class PrimssgDBWasmEngine {
 
   addMessage(message: ConvoMessage): void {
     this.requireDb().exec({
-      sql: `INSERT INTO messages (ownerId, threadId, messageId, serverId, senderId, senderUsername, text, files, status, createdAt, sentAt, deliveredAt)
+      sql: `INSERT INTO messages (ownerId, threadId, messageId, serverId, senderId, senderUsername, text, file, status, createdAt, sentAt, deliveredAt)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(ownerId, messageId) DO UPDATE SET
               threadId = excluded.threadId,
@@ -208,7 +218,7 @@ class PrimssgDBWasmEngine {
               senderId = excluded.senderId,
               senderUsername = excluded.senderUsername,
               text = excluded.text,
-              files = excluded.files,
+              file = excluded.file,
               status = excluded.status,
               createdAt = excluded.createdAt,
               sentAt = excluded.sentAt,
@@ -221,7 +231,7 @@ class PrimssgDBWasmEngine {
         message.sender.id,
         message.sender.username,
         message.text ?? null,
-        JSON.stringify(message.files),
+        message.file ? JSON.stringify(message.file) : null,
         message.status,
         message.createdAt,
         message.sentAt,
@@ -232,7 +242,7 @@ class PrimssgDBWasmEngine {
 
   listMessages(ownerId: string, threadId: string): ConvoMessage[] {
     const rows = this.requireDb().exec({
-      sql: `SELECT ownerId, threadId, messageId, serverId, senderId, senderUsername, text, files, status, createdAt, sentAt, deliveredAt
+      sql: `SELECT ownerId, threadId, messageId, serverId, senderId, senderUsername, text, file, status, createdAt, sentAt, deliveredAt
             FROM messages WHERE ownerId = ? AND threadId = ? ORDER BY createdAt`,
       bind: [ownerId, threadId],
       rowMode: "object",
@@ -305,7 +315,7 @@ function rowToConvoMessage(row: Record<string, string | null>): ConvoMessage {
     serverId: row.serverId ?? undefined,
     sender: { id: row.senderId!, username: row.senderUsername! },
     text: row.text ?? undefined,
-    files: JSON.parse(row.files!),
+    file: row.file ? JSON.parse(row.file) : undefined,
     status: row.status as ConvoMessage["status"],
     createdAt: row.createdAt!,
     sentAt: row.sentAt,

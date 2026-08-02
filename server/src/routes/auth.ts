@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js'
 import { db } from '../db'
 import { users } from '../db/schema'
+import { createSession, destroySession } from '../session'
 
 export const auth = new Hono()
 
@@ -35,6 +36,7 @@ auth.post('/register', async (c) => {
     .insert(users)
     .values({ username: trimmed, mlDsaPublicKey, mlKemPublicKey })
     .returning()
+  await createSession(c, created.id)
   return c.json({ user: created })
 })
 
@@ -70,5 +72,11 @@ auth.post('/login', async (c) => {
   )
   if (!valid) return c.json({ error: 'invalid signature' }, 401)
 
+  await createSession(c, user.id)
   return c.json({ user })
+})
+
+auth.post('/logout', async (c) => {
+  await destroySession(c)
+  return c.json({ ok: true })
 })

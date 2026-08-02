@@ -1,10 +1,13 @@
-// Mirrors server/src/routes/messages.ts's isExtensionAllowed() — fail-fast UX
-// only, not a security boundary. The server re-checks on presign regardless.
+// The only extension enforcement in the app — the server deliberately doesn't
+// check (see plans/encryption's discussion: server shouldn't know anything
+// about the file). Client-side only, easily bypassed by a modified client.
+
 const DEFAULT_BLACKLIST_EXTENSIONS =
   "exe,msi,bat,cmd,com,scr,pif,vbs,vbe,js,jse,wsf,wsh,ps1,ps1xml,psc1,sh,bash,zsh,csh,ksh,run,app,apk,ipa,dmg,pkg,dll,so,dylib,sys,drv,jar,deb,rpm";
-
+  
 function isSingleExtensionAllowed(fileName: string): boolean {
   const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
+  
 
   const whitelist = process.env.NEXT_PUBLIC_ATTACHMENT_WHITELIST_EXTENSIONS;
   if (whitelist) {

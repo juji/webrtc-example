@@ -13,7 +13,8 @@ import { BUCKET, s3 } from './storage'
 
 const app = new Hono()
 
-app.use('*', cors())
+const corsAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? 'http://localhost:3000').split(',')
+app.use('*', cors({ origin: corsAllowedOrigins, credentials: true }))
 
 app.route('/auth', auth)
 app.route('/users', usersRoute)

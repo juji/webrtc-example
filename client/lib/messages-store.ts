@@ -9,7 +9,7 @@ export type ChatMessage = {
   // read-marking effect in use-webrtc-chat.ts call POST /:id/read.
   serverId?: string;
   text?: string;
-  files: { name: string; type: string; url: string }[];
+  file?: { name: string; type: string; url: string };
   fromSelf: boolean;
   status: MessageStatus;
   createdAt: string;
@@ -21,9 +21,7 @@ export type MessageRow = {
   clientId: string;
   fromUserId: string;
   text: string | null;
-  fileName: string | null;
-  fileType: string | null;
-  fileUrl: string | null;
+  file: string | null;
   recipientAckedAt: string | null;
   createdAt: string;
 };

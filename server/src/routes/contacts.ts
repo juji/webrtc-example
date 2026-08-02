@@ -3,21 +3,22 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '../db'
 import { notifications, users } from '../db/schema'
 import { notifyUserByPush } from '../push'
+import { requireSession, type AuthedVariables } from '../session'
 
-export const contactsRoute = new Hono()
+export const contactsRoute = new Hono<{ Variables: AuthedVariables }>()
+contactsRoute.use('*', requireSession())
 
 contactsRoute.post('/request', async (c) => {
-  const { fromUsername, toId, keyFingerprint } = await c.req.json<{
-    fromUsername?: string
+  const { toId, keyFingerprint } = await c.req.json<{
     toId?: string
     keyFingerprint?: string
   }>()
-  if (!fromUsername || !toId || !keyFingerprint) {
-    return c.json({ error: 'fromUsername, toId and keyFingerprint are required' }, 400)
+  if (!toId || !keyFingerprint) {
+    return c.json({ error: 'toId and keyFingerprint are required' }, 400)
   }
 
-  const [fromUser] = await db.select().from(users).where(eq(users.username, fromUsername))
-  if (!fromUser) return c.json({ error: 'unknown fromUsername' }, 404)
+  const [fromUser] = await db.select().from(users).where(eq(users.id, c.var.userId))
+  if (!fromUser) return c.json({ error: 'session user no longer exists' }, 401)
 
   const [toUser] = await db.select().from(users).where(eq(users.id, toId))
   if (!toUser) return c.json({ error: 'unknown toId' }, 404)
@@ -94,11 +95,9 @@ contactsRoute.post('/request', async (c) => {
 // contact entry.
 contactsRoute.post('/requests/:id/accept', async (c) => {
   const id = c.req.param('id')
-  const { username } = await c.req.json<{ username?: string }>()
-  if (!username) return c.json({ error: 'username is required' }, 400)
 
-  const [user] = await db.select().from(users).where(eq(users.username, username))
-  if (!user) return c.json({ error: 'unknown username' }, 404)
+  const [user] = await db.select().from(users).where(eq(users.id, c.var.userId))
+  if (!user) return c.json({ error: 'session user no longer exists' }, 401)
 
   const [incoming] = await db
     .select()

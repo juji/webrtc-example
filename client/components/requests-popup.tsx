@@ -25,7 +25,7 @@ export function RequestsPopup({
   useEffect(() => {
     if (!open) return;
     setQuery("");
-    fetchContactRequests(user.username).then((rows) => {
+    fetchContactRequests().then((rows) => {
       setNotifications(rows);
       // An outgoing request may have been accepted while this client wasn't
       // listening for the live push (tab closed, notification dismissed) —
@@ -51,7 +51,7 @@ export function RequestsPopup({
     if (notification.data.direction !== "incoming") return;
     setAcceptingId(notification.id);
     try {
-      const contact = await acceptContactRequest(notification.id, user.username);
+      const contact = await acceptContactRequest(notification.id);
       await addContact({
         ownerId: user.id,
         id: contact.id,

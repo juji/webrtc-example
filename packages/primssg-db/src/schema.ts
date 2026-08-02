@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS messages (
   senderId TEXT NOT NULL,
   senderUsername TEXT NOT NULL,
   text TEXT,
-  files TEXT NOT NULL,
+  file TEXT,
   status TEXT NOT NULL,
   createdAt TEXT NOT NULL,
   sentAt TEXT,

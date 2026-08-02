@@ -8,7 +8,7 @@ import { ContactsPopup } from "@/components/contacts-popup";
 import { Popup } from "@/components/popup";
 import { QrCodePopup } from "@/components/qr-code-popup";
 import { RequestsPopup } from "@/components/requests-popup";
-import { fetchContactRequests } from "@/lib/api";
+import { fetchContactRequests, logout as logoutSession } from "@/lib/api";
 import type { Contact } from "@/lib/contacts";
 import { getContact } from "@/lib/contacts";
 import { getOrCreateConversation, listConversations, type Conversation } from "@/lib/chats";
@@ -113,26 +113,27 @@ export default function MockupPage() {
       // Permission was already granted (e.g. from a previous account on this
       // browser) — the "Enable" banner never shows, so re-subscribe here or
       // this user's push subscription never gets registered on the server.
-      enablePushForUser(user.username);
+      enablePushForUser();
     }
   }, [user]);
 
   useEffect(() => {
     if (!user || showRequests) return;
-    fetchContactRequests(user.username).then((notifications) => {
+    fetchContactRequests().then((notifications) => {
       const pendingReceived = notifications.filter((n) => n.data.direction === "incoming" && n.status === "pending");
       setRequestCount(pendingReceived.length);
     });
   }, [user, showRequests]);
 
   function handleLogout() {
+    logoutSession();
     logout();
     router.push("/");
   }
 
   async function handleEnableNotifications() {
     if (!user) return;
-    await enablePushForUser(user.username);
+    await enablePushForUser();
     setNeedsNotificationPrompt(Notification.permission === "default");
   }
 

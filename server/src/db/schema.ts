@@ -9,6 +9,21 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
+// One row per logged-in session. `token` is the signed JWT stored in the
+// httpOnly session cookie — the JWT itself is self-verifying (signature +
+// its own exp claim), this row exists so a session can be revoked early
+// (logout) and so lastUpdatedAt can drive rolling renewal: past 15 days
+// since lastUpdatedAt, a request gets issued a fresh JWT (new expiresAt,
+// lastUpdatedAt reset) instead of requiring re-login at the 30-day mark.
+export const userSessions = pgTable('user_sessions', {
+  id: uuid('id').primaryKey().$defaultFn(uuidv7),
+  token: text('token').notNull().unique(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  expiresAt: timestamp('expires_at').notNull(),
+  lastUpdatedAt: timestamp('last_updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
 export const pushSubscriptions = pgTable('push_subscriptions', {
   id: uuid('id').primaryKey().$defaultFn(uuidv7),
   userId: uuid('user_id').notNull().references(() => users.id),
@@ -50,9 +65,11 @@ export const messages = pgTable('messages', {
   fromUserId: uuid('from_user_id').notNull().references(() => users.id),
   toUserId: uuid('to_user_id').notNull().references(() => users.id),
   text: text('text'),
-  fileName: text('file_name'),
-  fileType: text('file_type'),
-  fileUrl: text('file_url'),
+  // Opaque JSON blob ({name, type, url}) — the server never reads/validates its
+  // contents (see plans/encryption's discussion: extension checks moved
+  // client-only, server doesn't know anything about the file). Plain text
+  // column, not jsonb, so it stays a drop-in target for ciphertext later.
+  file: text('file'),
   recipientAckedAt: timestamp('recipient_acked_at'),
   recipientReadAt: timestamp('recipient_read_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),

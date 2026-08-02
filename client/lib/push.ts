@@ -10,7 +10,7 @@ function urlBase64ToUint8Array(base64Url: string): Uint8Array {
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
-export async function enablePushForUser(username: string): Promise<void> {
+export async function enablePushForUser(): Promise<void> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
   const permission = await Notification.requestPermission();
@@ -30,7 +30,7 @@ export async function enablePushForUser(username: string): Promise<void> {
   const json = subscription.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return;
 
-  await subscribeToPush(username, {
+  await subscribeToPush({
     endpoint: json.endpoint,
     p256dh: json.keys.p256dh,
     auth: json.keys.auth,

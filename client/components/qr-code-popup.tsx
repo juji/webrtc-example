@@ -116,7 +116,7 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
     if (!scanned) return;
     setRequestState("sending");
     try {
-      await sendContactRequest(user.username, scanned.id, scanned.keyFingerprint);
+      await sendContactRequest(scanned.id, scanned.keyFingerprint);
       setRequestState("sent");
     } catch (err) {
       console.error("failed to send contact request:", err);

@@ -20,6 +20,7 @@ export async function register(username: string): Promise<User> {
 
   const res = await fetch(`${SERVER_URL}/auth/register`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       username,
@@ -57,6 +58,7 @@ export async function login(username: string): Promise<User> {
 
   const loginRes = await fetch(`${SERVER_URL}/auth/login`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, signature: toBase64(signature) }),
   });
@@ -76,6 +78,10 @@ export async function loginOrRegister(username: string): Promise<User> {
   return login(username);
 }
 
+export async function logout(): Promise<void> {
+  await fetch(`${SERVER_URL}/auth/logout`, { method: "POST", credentials: "include" });
+}
+
 export type PublicUser = { id: string; username: string; mlKemPublicKey: string };
 
 export async function fetchUserById(id: string): Promise<PublicUser | null> {
@@ -92,42 +98,36 @@ export async function fetchVapidPublicKey(): Promise<string> {
 }
 
 export async function subscribeToPush(
-  username: string,
   subscription: { endpoint: string; p256dh: string; auth: string },
 ): Promise<void> {
   await fetch(`${SERVER_URL}/push/subscribe`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, ...subscription }),
+    body: JSON.stringify(subscription),
   });
 }
 
 export async function unsubscribeFromPush(endpoint: string): Promise<void> {
   await fetch(`${SERVER_URL}/push/unsubscribe`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ endpoint }),
   });
 }
 
-export async function sendTestPush(username: string): Promise<void> {
-  const res = await fetch(`${SERVER_URL}/push/test`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username }),
-  });
+export async function sendTestPush(): Promise<void> {
+  const res = await fetch(`${SERVER_URL}/push/test`, { method: "POST", credentials: "include" });
   if (!res.ok) throw new Error((await res.json()).error ?? "test push failed");
 }
 
-export async function sendContactRequest(
-  fromUsername: string,
-  toId: string,
-  keyFingerprint: string,
-): Promise<void> {
+export async function sendContactRequest(toId: string, keyFingerprint: string): Promise<void> {
   const res = await fetch(`${SERVER_URL}/contacts/request`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fromUsername, toId, keyFingerprint }),
+    body: JSON.stringify({ toId, keyFingerprint }),
   });
   if (!res.ok) throw new Error((await res.json()).error ?? "failed to send contact request");
 }
@@ -148,31 +148,30 @@ export type ContactRequestNotification = {
 
 export type AcceptedContact = { id: string; username: string; mlKemPublicKey: string };
 
-export async function acceptContactRequest(requestId: string, username: string): Promise<AcceptedContact> {
+export async function acceptContactRequest(requestId: string): Promise<AcceptedContact> {
   const res = await fetch(`${SERVER_URL}/contacts/requests/${requestId}/accept`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username }),
+    credentials: "include",
   });
   if (!res.ok) throw new Error((await res.json()).error ?? "failed to accept contact request");
   const { contact } = await res.json();
   return contact;
 }
 
-export async function fetchContactRequests(username: string): Promise<ContactRequestNotification[]> {
-  const res = await fetch(`${SERVER_URL}/notifications?username=${encodeURIComponent(username)}`);
+export async function fetchContactRequests(): Promise<ContactRequestNotification[]> {
+  const res = await fetch(`${SERVER_URL}/notifications`, { credentials: "include" });
   const { notifications } = await res.json();
   return notifications;
 }
 
 export async function sendFailoverMessage(args: {
   clientId: string;
-  fromUsername: string;
   toUsername: string;
   text: string;
 }): Promise<MessageRow> {
   const res = await fetch(`${SERVER_URL}/messages`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(args),
   });
@@ -180,41 +179,41 @@ export async function sendFailoverMessage(args: {
   return message;
 }
 
-export async function fetchFailoverMessages(peer: string, self: string): Promise<MessageRow[]> {
-  const params = new URLSearchParams({ peer, self });
-  const res = await fetch(`${SERVER_URL}/messages?${params}`);
+export async function fetchFailoverMessages(peer: string): Promise<MessageRow[]> {
+  const params = new URLSearchParams({ peer });
+  const res = await fetch(`${SERVER_URL}/messages?${params}`, { credentials: "include" });
   const { messages } = await res.json();
   return messages;
 }
 
 export async function ackMessage(id: string): Promise<MessageRow> {
-  const res = await fetch(`${SERVER_URL}/messages/${id}/ack`, { method: "POST" });
+  const res = await fetch(`${SERVER_URL}/messages/${id}/ack`, { method: "POST", credentials: "include" });
   const { message } = await res.json();
   return message;
 }
 
 export async function readMessage(id: string): Promise<MessageRow> {
-  const res = await fetch(`${SERVER_URL}/messages/${id}/read`, { method: "POST" });
+  const res = await fetch(`${SERVER_URL}/messages/${id}/read`, { method: "POST", credentials: "include" });
   const { message } = await res.json();
   return message;
 }
 
 export async function deleteMessage(id: string): Promise<void> {
-  await fetch(`${SERVER_URL}/messages/${id}`, { method: "DELETE" });
+  await fetch(`${SERVER_URL}/messages/${id}`, { method: "DELETE", credentials: "include" });
 }
 
 export async function sendFailoverFile(args: {
   clientId: string;
-  fromUsername: string;
   toUsername: string;
   file: File;
 }): Promise<MessageRow> {
-  const { clientId, fromUsername, toUsername, file } = args;
+  const { clientId, toUsername, file } = args;
 
   const presignRes = await fetch(`${SERVER_URL}/messages/attachment/presign`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId, fromUsername, toUsername, fileName: file.name, fileType: file.type }),
+    body: JSON.stringify({ clientId, toUsername, fileName: file.name, fileType: file.type }),
   });
   const { putUrl, key } = await presignRes.json();
 
@@ -222,8 +221,9 @@ export async function sendFailoverFile(args: {
 
   const confirmRes = await fetch(`${SERVER_URL}/messages/attachment/confirm`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId, fromUsername, toUsername, fileName: file.name, fileType: file.type, key }),
+    body: JSON.stringify({ clientId, toUsername, fileName: file.name, fileType: file.type, key }),
   });
   const { message } = await confirmRes.json();
   return message;

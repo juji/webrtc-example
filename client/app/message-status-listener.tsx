@@ -31,7 +31,7 @@ export function MessageStatusListener() {
             messageId: row.clientId,
             serverId: row.id,
             text: row.text ?? undefined,
-            files: row.fileUrl ? [{ name: row.fileName!, type: row.fileType!, url: row.fileUrl }] : [],
+            file: row.file ? JSON.parse(row.file) : undefined,
             fromSelf: false,
             status: "sent",
             createdAt: row.createdAt,

@@ -87,6 +87,8 @@ self.addEventListener("push", (event) => {
 self.addEventListener("pushsubscriptionchange", (event) => {
   event.waitUntil(
     (async () => {
+      // Cheap gate before bothering with a resubscribe attempt — the actual
+      // auth on /push/subscribe is the session cookie below, not this.
       const username = await getLoggedInUsername();
       if (!username || !serverUrl) return;
 
@@ -101,11 +103,14 @@ self.addEventListener("pushsubscriptionchange", (event) => {
       const json = subscription.toJSON();
       if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return;
 
+      // credentials: "include" sends the httpOnly session cookie — service
+      // workers can do this the same as any other fetch, it doesn't need
+      // the page's help. The server derives identity from that, not username.
       await fetch(`${serverUrl}/push/subscribe`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username,
           endpoint: json.endpoint,
           p256dh: json.keys.p256dh,
           auth: json.keys.auth,

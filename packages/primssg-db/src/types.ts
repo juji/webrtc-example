@@ -30,7 +30,7 @@ export type ConvoMessage = {
   serverId?: string; // server row id, only set for server-fallback-delivered messages
   sender: { id: string; username: string }; // id === ownerId if fromSelf
   text?: string;
-  files: { name: string; type: string; url: string }[];
+  file?: { name: string; type: string; url: string };
   status: "sending" | "in-transit" | "sent" | "read";
   createdAt: string;
   sentAt: string | null;

@@ -1,4 +1,4 @@
-import webPush from 'web-push'
+import webPush, { WebPushError } from 'web-push'
 import { eq } from 'drizzle-orm'
 import { db } from './db'
 import { pushSubscriptions } from './db/schema'
@@ -38,7 +38,16 @@ export async function notifyUserByPush(userId: string, payload: PushPayload) {
   const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId))
   await Promise.all(
     subs.map((sub) =>
-      sendPush(sub, payload).catch((err) => {
+      sendPush(sub, payload).catch(async (err) => {
+        // 404/410 mean the endpoint is permanently gone (browser unsubscribed,
+        // site data cleared, subscription expired) — it will never succeed
+        // again, so keeping the row just means re-failing on every future
+        // push to this user forever. Any other error (network blip, 5xx from
+        // the push service) is left alone since it may still recover.
+        if (err instanceof WebPushError && (err.statusCode === 404 || err.statusCode === 410)) {
+          await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint))
+          return
+        }
         console.error('push send failed:', err)
       }),
     ),

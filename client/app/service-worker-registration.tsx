@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { syncAcceptedContact } from "@/lib/contacts";
+import { SERVER_URL } from "@/lib/api";
 import { useSessionStore } from "@/lib/session-store";
 
 type ContactAcceptedData = {
@@ -17,7 +18,16 @@ export function ServiceWorkerRegistration() {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/sw.js");
+    navigator.serviceWorker.register("/sw.js").then((registration) => {
+      // The SW's pushsubscriptionchange handler needs to know who to
+      // re-register a rotated subscription for — it has no access to
+      // localStorage/session state on its own. Told on every mount (not
+      // just login) so a SW that was still starting up at registration time
+      // still gets it once ready, and re-affirmed if the user changes.
+      if (!user) return;
+      const target = registration.active ?? navigator.serviceWorker.controller;
+      target?.postMessage({ type: "auth", username: user.username, serverUrl: SERVER_URL });
+    });
 
     async function handleContactAccepted(data: ContactAcceptedData) {
       if (!user) return;

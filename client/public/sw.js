@@ -1,5 +1,16 @@
 // Minimal service worker — required for PWA installability, extended here
 // with Web Push handling (see plans/contacts, Phase 4).
+
+// Told by service-worker-registration.tsx on every mount — the SW has no
+// access to localStorage/session state on its own, but pushsubscriptionchange
+// below needs to know who to re-register a rotated subscription for.
+let auth = null;
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "auth") {
+    auth = { username: event.data.username, serverUrl: event.data.serverUrl };
+  }
+});
+
 self.addEventListener("install", () => {
   self.skipWaiting();
 });
@@ -33,6 +44,49 @@ self.addEventListener("push", (event) => {
     ]),
   );
 });
+
+// Fires when the browser/push service invalidates the current subscription
+// (rotation, expiry) — the old endpoint is gone for good at that point, no
+// server-side fix can revive it (see server/src/push.ts's 404/410 cleanup).
+// The only recovery is subscribing again and telling the server about the
+// new endpoint, which only the SW can do here — nothing calls this if no
+// page has posted "auth" yet (e.g. the SW was never told who's logged in).
+self.addEventListener("pushsubscriptionchange", (event) => {
+  if (!auth) return;
+  event.waitUntil(
+    (async () => {
+      const keyRes = await fetch(`${auth.serverUrl}/push/vapid-public-key`);
+      const { publicKey } = await keyRes.json();
+
+      const subscription = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+
+      const json = subscription.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return;
+
+      await fetch(`${auth.serverUrl}/push/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: auth.username,
+          endpoint: json.endpoint,
+          p256dh: json.keys.p256dh,
+          auth: json.keys.auth,
+        }),
+      });
+    })(),
+  );
+});
+
+// Mirrors client/lib/push.ts's urlBase64ToUint8Array — sw.js is a static
+// file, not part of the Next bundle, so it can't import the shared helper.
+function urlBase64ToUint8Array(base64Url) {
+  const base64 = (base64Url + "=".repeat((4 - (base64Url.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(base64);
+  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+}
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

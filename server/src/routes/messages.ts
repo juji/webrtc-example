@@ -65,7 +65,7 @@ messagesRoute.post('/', async (c) => {
   notifyUser(toUser.id, { type: 'new-message', message: row, fromUsername })
   await notifyUserByPush(toUser.id, {
     title: 'Primssg',
-    body: `${fromUsername}: ${text ?? ''}`,
+    body: `New message from ${fromUsername}`,
     url: `/chat?peer=${fromUser.id}`,
   })
 
@@ -245,7 +245,7 @@ messagesRoute.post('/attachment/confirm', async (c) => {
   notifyUser(toUser.id, { type: 'new-message', message: row, fromUsername })
   await notifyUserByPush(toUser.id, {
     title: 'Primssg',
-    body: `${fromUsername} sent a file: ${fileName}`,
+    body: `New message from ${fromUsername}`,
     url: `/chat?peer=${fromUser.id}`,
   })
 

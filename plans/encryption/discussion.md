@@ -41,8 +41,12 @@ Standard hybrid pattern for actually encrypting a payload once a message key is 
 
 ## Open questions
 
-**1. What metadata stays visible** — *tradeoff, not a blocker*
-`fileName`/`fileType` are visible to the server today. Hiding them is possible but adds complexity (placeholder value at upload, real value decrypted client-side after download).
+**1. What metadata stays visible** — *bigger than first written, not fully resolved*
+Encrypting `text` and attachment bytes only protects content. Everything else on the `messages` row (`server/src/db/schema.ts`) stays server-visible under this design as currently scoped:
+- `fromUserId` / `toUserId` — **the social graph itself**: who talks to whom, and (via `createdAt`) when. Structurally required for server-relay routing/delivery (`notifyUser`, `GET /messages?peer=&self=`) — not optional metadata, the server can't deliver what it can't address. The real question is whether it needs to sit in cleartext on a *persisted* row long-term, not whether the server ever sees it. A true fix (sealed sender, onion routing) is a materially bigger, separate project — not addressed here, just named as a known gap.
+- `fileName` / `fileType` — visible today (used for the presigned PUT's `Content-Type` and shown in the chat UI). Hiding them is possible but adds complexity: a placeholder value at upload time, real value decrypted client-side after download.
+- `recipientAckedAt` / `recipientReadAt` — delivery/read-receipt timestamps, inherently server-visible since the server is the one recording them.
+- **Push notification body — fixed.** `notifyUserByPush`'s body (`server/src/routes/messages.ts`, both `POST /` and `POST /attachment/confirm`) used to send actual message content / filename to a third-party push provider (`` `${fromUsername}: ${text ?? ''}` ``, `` `${fromUsername} sent a file: ${fileName}` ``). Changed to a fixed `` `New message from ${fromUsername}` `` for both — username only, no content, independent of whether `text` is ciphertext or plaintext.
 
 **2. Signing** — *not even raised until now*
 ML-DSA-65 keys exist and are registered but completely unused — not even for the identity handshake (which relies on KEM-key fingerprint matching, not a DSA signature). Whether encrypted messages should also be signed (authenticity, not just confidentiality) is a separate question nobody's asked yet.

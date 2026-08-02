@@ -170,63 +170,67 @@ export default function MockupPage() {
           selected ? "hidden" : "flex"
         }`}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-background/30 px-8 py-6 shadow-xl backdrop-blur-lg dark:border-white/10">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-background/30 px-8 py-3 shadow-xl backdrop-blur-lg dark:border-white/10">
           <h1 className="text-xl font-semibold text-black dark:text-zinc-50" style={{ fontFamily: "var(--font-libertinus-math)" }}>Primssg</h1>
-          <div ref={menuRef} className="relative">
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Menu"
+              onClick={() => {
+                setHighlightNotificationId(null);
+                setShowRequests(true);
+              }}
+              aria-label="Notifications"
               className="relative flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
             >
-              <Menu className="h-4 w-4" />
+              <Bell className="h-4 w-4" />
               {requestCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium text-white">
                   {requestCount > 9 ? "9+" : requestCount}
                 </span>
               )}
             </button>
-            {menuOpen && (
-              <div className="absolute top-full right-0 mt-2 flex w-48 flex-col overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-zinc-900">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setHighlightNotificationId(null);
-                    setShowRequests(true);
-                  }}
-                  className="flex items-center justify-between gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
-                >
-                  <span className="flex items-center gap-2">
-                    <Bell className="h-4 w-4" />
-                    Notifications
-                  </span>
-                  {requestCount > 0 && (
-                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium text-white">
-                      {requestCount > 9 ? "9+" : requestCount}
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setShowQr(true);
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
-                >
-                  <QrCode className="h-4 w-4" />
-                  QR Code
-                </button>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setShowContacts(true);
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
-                >
-                  <Users className="h-4 w-4" />
-                  Contacts
-                </button>
-              </div>
-            )}
+            <div ref={menuRef} className="relative">
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label="Menu"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
+              >
+                <Menu className="h-4 w-4" />
+              </button>
+              {menuOpen && (
+                <div className="absolute top-full right-0 mt-2 flex w-48 flex-col overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setShowQr(true);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                  >
+                    <QrCode className="h-4 w-4" />
+                    QR Code
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setShowContacts(true);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                  >
+                    <Users className="h-4 w-4" />
+                    Contacts
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setConfirmingLogout(true);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                  >
+                    <LogOut className="h-4 w-4 text-red-600 dark:text-red-500" />
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -283,15 +287,7 @@ export default function MockupPage() {
           </div>
         )}
 
-        <div className="sticky bottom-0 mt-auto flex items-center justify-end border-t border-black/10 bg-background px-8 py-4 dark:border-white/10">
-          <button
-            onClick={() => setConfirmingLogout(true)}
-            aria-label="Log out"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
+        <div className="sticky bottom-0 mt-auto flex items-center border-t border-black/10 bg-background px-8 py-3 dark:border-white/10" />
       </div>
 
       <div className={`min-h-0 flex-1 flex-col ${selected ? "flex" : "hidden md:flex"}`}>

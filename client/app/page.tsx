@@ -36,7 +36,10 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-zinc-50 dark:bg-black">
+    <div
+      className="flex flex-1 items-center justify-center"
+      style={{ backgroundImage: "url('/security-tile.svg')", backgroundRepeat: "repeat" }}
+    >
       <form
         onSubmit={handleSubmit}
         className="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-black/10 bg-white p-8 dark:border-white/10 dark:bg-zinc-900"

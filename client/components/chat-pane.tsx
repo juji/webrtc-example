@@ -242,7 +242,10 @@ export function ChatPane({
         />
       </div>
 
-      <ul className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-0 pb-6">
+      <ul
+        className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-0 pb-6"
+        style={{ backgroundImage: "url('/security-tile.svg')", backgroundRepeat: "repeat" }}
+      >
         {messages.map((m, i) => {
           const prev = messages[i - 1];
           const showDateSeparator = !prev || !isSameDay(prev.createdAt, m.createdAt);
@@ -257,8 +260,8 @@ export function ChatPane({
               <div
                 className={`flex w-fit max-w-[80%] flex-col gap-0.5 rounded-2xl px-4 py-2 ${
                   m.fromSelf
-                    ? "self-end rounded-br-md bg-orange-500/64 text-black dark:text-zinc-50"
-                    : "self-start rounded-bl-md bg-black/5 text-black dark:bg-white/10 dark:text-zinc-50"
+                    ? "self-end rounded-br-md bg-orange-700 text-black dark:text-zinc-50"
+                    : "self-start rounded-bl-md bg-zinc-200 text-black dark:bg-zinc-800 dark:text-zinc-50"
                 }`}
               >
                 {file ? (

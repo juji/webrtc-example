@@ -46,7 +46,7 @@ export function ChatPane({
 }) {
   const { connected, messages, sendMessage, sendFile } = useWebRtcChat(selfId, selfUsername, peerId, username);
   const [draft, setDraft] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -71,27 +71,39 @@ export function ChatPane({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!draft.trim() && !selectedFile) return;
+    if (!draft.trim() && selectedFiles.length === 0) return;
     if (draft.trim()) sendMessage(draft.trim());
-    if (selectedFile) sendFile(selectedFile);
+    for (const file of selectedFiles) sendFile(file);
     setDraft("");
-    setSelectedFile(null);
+    setSelectedFiles([]);
+    setFileError(null);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   }
 
-  function acceptFile(file: File) {
-    if (!isExtensionAllowed(file.name)) {
-      setFileError("That file type isn't allowed.");
-      return;
-    }
-    setFileError(null);
-    setSelectedFile(file);
+  function acceptFiles(files: File[]) {
+    const allowed = files.filter((file) => isExtensionAllowed(file.name));
+    const rejectedExtensions = [
+      ...new Set(
+        files
+          .filter((file) => !isExtensionAllowed(file.name))
+          .map((file) => file.name.split(".").pop()?.toLowerCase())
+          .filter(Boolean),
+      ),
+    ];
+    setFileError(
+      rejectedExtensions.length > 0 ? `.${rejectedExtensions.join(", .")} files aren't allowed.` : null,
+    );
+    if (allowed.length > 0) setSelectedFiles((prev) => [...prev, ...allowed]);
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (file) acceptFile(file);
+    if (files.length > 0) acceptFiles(files);
+  }
+
+  function removeSelectedFile(index: number) {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -174,22 +186,29 @@ export function ChatPane({
 
       <div className="border-t border-black/10 dark:border-white/10">
         {fileError && <p className="px-4 pt-3 text-sm text-red-500">{fileError}</p>}
-        {selectedFile && (
-          <div className="mx-4 mt-3 flex w-fit items-center gap-2 rounded-full bg-black/5 px-3 py-1.5 text-sm text-black dark:bg-white/10 dark:text-zinc-50">
-            <Paperclip className="h-3.5 w-3.5 shrink-0" />
-            <span className="max-w-48 truncate">{selectedFile.name}</span>
-            <button
-              type="button"
-              onClick={() => setSelectedFile(null)}
-              aria-label="Remove attachment"
-              className="flex h-4 w-4 shrink-0 items-center justify-center text-zinc-500 hover:text-black dark:hover:text-zinc-50"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+        {selectedFiles.length > 0 && (
+          <div className="mx-4 mt-3 flex flex-wrap gap-2">
+            {selectedFiles.map((file, i) => (
+              <div
+                key={`${file.name}-${i}`}
+                className="flex w-fit items-center gap-2 rounded-full bg-black/5 px-3 py-1.5 text-sm text-black dark:bg-white/10 dark:text-zinc-50"
+              >
+                <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                <span className="max-w-48 truncate">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeSelectedFile(i)}
+                  aria-label="Remove attachment"
+                  className="flex h-4 w-4 shrink-0 items-center justify-center text-zinc-500 hover:text-black dark:hover:text-zinc-50"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
           </div>
         )}
         <form onSubmit={handleSubmit} className="flex items-end gap-2 px-4 py-4">
-          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+          <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
           <div ref={attachMenuRef} className="relative shrink-0">
             <button
               type="button"
@@ -227,7 +246,7 @@ export function ChatPane({
           />
           <button
             type="submit"
-            disabled={!draft.trim() && !selectedFile}
+            disabled={!draft.trim() && selectedFiles.length === 0}
             aria-label="Send message"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             style={{ backgroundColor: "#ea580c" }}

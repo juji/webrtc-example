@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Image as ImageIcon, Mic, Paperclip, Send, Square, Upload, Video, X } from "lucide-react";
+import { ArrowLeft, Download, Image as ImageIcon, Mic, Paperclip, Send, Square, Upload, Video, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { vistaView, type VistaImgConfig } from "vistaview";
 import { nativeVideo, type VistaVideoConfig } from "vistaview/extensions/native-video";
@@ -93,6 +93,19 @@ export function ChatPane({
     const index = galleryItems.findIndex((item) => item.src === url);
     if (index === -1) return;
     vistaView({ elements: galleryItems, extensions: [nativeVideo()] })?.open(index);
+  }
+
+  // The <a download> attribute is only honored for same-origin (or blob:/data:) URLs —
+  // attachments are served from a different origin (RUSTFS_ENDPOINT), so it's silently
+  // ignored there and the browser just navigates/opens the file instead of saving it.
+  async function downloadFile(url: string, name: string) {
+    const blob = await fetch(url).then((res) => res.blob());
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(blobUrl);
   }
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -251,44 +264,62 @@ export function ChatPane({
                   m.files[0].type.startsWith("audio/") ? (
                     <audio controls src={m.files[0].url} className="h-10 max-w-64" />
                   ) : m.files[0].type.startsWith("image/") ? (
-                    <button type="button" onClick={() => openGallery(m.files[0].url)} className="block">
-                      {/* eslint-disable-next-line @next/next/no-img-element -- object/remote URL, not a static asset Next can optimize */}
-                      <img
-                        src={m.files[0].url}
-                        alt={m.files[0].name}
-                        className="max-h-64 max-w-64 rounded-lg object-cover"
-                      />
-                    </button>
+                    <div className="flex flex-col gap-1.5">
+                      <button type="button" onClick={() => openGallery(m.files[0].url)} className="block">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- object/remote URL, not a static asset Next can optimize */}
+                        <img
+                          src={m.files[0].url}
+                          alt={m.files[0].name}
+                          className="max-h-64 max-w-64 rounded-lg object-cover"
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadFile(m.files[0].url, m.files[0].name)}
+                        className="flex items-center justify-center gap-1.5 rounded-lg bg-black/10 py-1.5 text-sm font-medium hover:bg-black/15 dark:bg-white/10 dark:hover:bg-white/15"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Download
+                      </button>
+                    </div>
                   ) : m.files[0].type.startsWith("video/") ? (
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openGallery(m.files[0].url)}
+                        className="relative block max-h-64 max-w-64"
+                      >
+                        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                        <video src={m.files[0].url} muted className="max-h-64 max-w-64 rounded-lg object-cover" />
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white">
+                            <Video className="h-4 w-4" />
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadFile(m.files[0].url, m.files[0].name)}
+                        className="flex items-center justify-center gap-1.5 rounded-lg bg-black/10 py-1.5 text-sm font-medium hover:bg-black/15 dark:bg-white/10 dark:hover:bg-white/15"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Download
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => openGallery(m.files[0].url)}
-                      className="relative block max-h-64 max-w-64"
-                    >
-                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                      <video src={m.files[0].url} muted className="max-h-64 max-w-64 rounded-lg object-cover" />
-                      <span className="absolute inset-0 flex items-center justify-center">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white">
-                          <Video className="h-4 w-4" />
-                        </span>
-                      </span>
-                    </button>
-                  ) : (
-                    <a
-                      href={m.files[0].url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download={m.files[0].name}
+                      onClick={() => downloadFile(m.files[0].url, m.files[0].name)}
                       className="flex items-center gap-2 text-sm underline"
                     >
                       <Paperclip className="h-3.5 w-3.5 shrink-0" />
                       {m.files[0].name}
-                    </a>
+                    </button>
                   )
                 ) : (
                   <span className="text-sm">{m.text}</span>
                 )}
-                <span className="self-end text-xs opacity-60">
+                <span className="self-end mt-1.5 text-xs opacity-60">
                   {formatTime(m.createdAt)}
                   {m.fromSelf && ` · ${m.status}`}
                 </span>

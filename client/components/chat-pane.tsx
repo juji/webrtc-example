@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Paperclip, Send, Upload, X } from "lucide-react";
+import { ArrowLeft, Mic, Paperclip, Send, Square, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { isExtensionAllowed } from "@/lib/attachment-validation";
 import { useWebRtcChat } from "@/lib/use-webrtc-chat";
@@ -31,6 +31,9 @@ function formatTime(iso: string): string {
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
+// Every extension a MediaRecorder-produced audio file could plausibly need across browsers.
+const KNOWN_AUDIO_EXTENSIONS = ["webm", "ogg", "mp4", "m4a", "aac", "wav"];
+
 export function ChatPane({
   selfId,
   selfUsername,
@@ -49,10 +52,13 @@ export function ChatPane({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     if (!attachMenuOpen) return;
@@ -104,6 +110,34 @@ export function ChatPane({
 
   function removeSelectedFile(index: number) {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function startRecording() {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Safari can't produce webm at all (no MediaRecorder support for it), so it
+    // falls through to the browser's default mimeType (its native mp4/aac).
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : undefined;
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recordedChunksRef.current = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+    };
+    recorder.onstop = () => {
+      stream.getTracks().forEach((track) => track.stop());
+      const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType });
+      const extension = recorder.mimeType.split("/")[1]?.split(";")[0] ?? "webm";
+      const file = new File([blob], `voice-message-${Date.now()}.${extension}`, { type: recorder.mimeType });
+      acceptFiles([file]);
+    };
+    recorder.start();
+    mediaRecorderRef.current = recorder;
+    setIsRecording(true);
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -231,9 +265,32 @@ export function ChatPane({
                   <Upload className="h-4 w-4" />
                   Upload files
                 </button>
+                {isExtensionAllowed(KNOWN_AUDIO_EXTENSIONS.map((ext) => `voice-message.${ext}`)) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachMenuOpen(false);
+                      startRecording();
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                  >
+                    <Mic className="h-4 w-4" />
+                    Record audio
+                  </button>
+                )}
               </div>
             )}
           </div>
+          {isRecording && (
+            <button
+              type="button"
+              onClick={stopRecording}
+              className="flex h-9 shrink-0 items-center gap-2 rounded-full bg-red-600 px-3 text-sm text-white"
+            >
+              <Square className="h-3.5 w-3.5 fill-current" />
+              Stop recording
+            </button>
+          )}
           <textarea
             ref={textareaRef}
             value={draft}

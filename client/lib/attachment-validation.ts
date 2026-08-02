@@ -3,7 +3,7 @@
 const DEFAULT_BLACKLIST_EXTENSIONS =
   "exe,msi,bat,cmd,com,scr,pif,vbs,vbe,js,jse,wsf,wsh,ps1,ps1xml,psc1,sh,bash,zsh,csh,ksh,run,app,apk,ipa,dmg,pkg,dll,so,dylib,sys,drv,jar,deb,rpm";
 
-export function isExtensionAllowed(fileName: string): boolean {
+function isSingleExtensionAllowed(fileName: string): boolean {
   const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
 
   const whitelist = process.env.NEXT_PUBLIC_ATTACHMENT_WHITELIST_EXTENSIONS;
@@ -18,4 +18,9 @@ export function isExtensionAllowed(fileName: string): boolean {
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   return !blocked.includes(extension);
+}
+
+export function isExtensionAllowed(fileName: string | string[]): boolean {
+  const fileNames = Array.isArray(fileName) ? fileName : [fileName];
+  return fileNames.some(isSingleExtensionAllowed);
 }

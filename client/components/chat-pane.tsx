@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowLeft, Mic, Paperclip, Send, Square, Upload, X } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon, Mic, Paperclip, Send, Square, Upload, Video, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { isExtensionAllowed } from "@/lib/attachment-validation";
 import { useWebRtcChat } from "@/lib/use-webrtc-chat";
+import { CapturePopup, type CaptureMode } from "./capture-popup";
 
 function isSameDay(a: string, b: string): boolean {
   const dateA = new Date(a);
@@ -33,6 +34,8 @@ const MAX_TEXTAREA_HEIGHT = 160;
 
 // Every extension a MediaRecorder-produced audio file could plausibly need across browsers.
 const KNOWN_AUDIO_EXTENSIONS = ["webm", "ogg", "mp4", "m4a", "aac", "wav"];
+const KNOWN_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "svg", "avif"];
+const KNOWN_VIDEO_EXTENSIONS = ["mp4", "mov", "webm", "avi", "mkv", "m4v", "3gp"];
 
 export function ChatPane({
   selfId,
@@ -53,8 +56,13 @@ export function ChatPane({
   const [fileError, setFileError] = useState<string | null>(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [captureMode, setCaptureMode] = useState<CaptureMode | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -75,6 +83,10 @@ export function ChatPane({
     messagesEndRef.current?.scrollIntoView();
   }, [messages.length]);
 
+  useEffect(() => {
+    setIsMobile(window.matchMedia("(pointer: coarse)").matches);
+  }, []);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!draft.trim() && selectedFiles.length === 0) return;
@@ -86,12 +98,16 @@ export function ChatPane({
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   }
 
-  function acceptFiles(files: File[]) {
-    const allowed = files.filter((file) => isExtensionAllowed(file.name));
+  function acceptFiles(files: File[], extraBlockedExtensions: string[] = []) {
+    const isAllowed = (file: File) => {
+      const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+      return !extraBlockedExtensions.includes(extension) && isExtensionAllowed(file.name);
+    };
+    const allowed = files.filter(isAllowed);
     const rejectedExtensions = [
       ...new Set(
         files
-          .filter((file) => !isExtensionAllowed(file.name))
+          .filter((file) => !isAllowed(file))
           .map((file) => file.name.split(".").pop()?.toLowerCase())
           .filter(Boolean),
       ),
@@ -103,6 +119,12 @@ export function ChatPane({
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length > 0) acceptFiles(files, [...KNOWN_IMAGE_EXTENSIONS, ...KNOWN_VIDEO_EXTENSIONS]);
+  }
+
+  function handleMediaFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (files.length > 0) acceptFiles(files);
@@ -139,6 +161,9 @@ export function ChatPane({
     mediaRecorderRef.current = null;
     setIsRecording(false);
   }
+
+  const canAddPhotos = isExtensionAllowed(KNOWN_IMAGE_EXTENSIONS.map((ext) => `photo.${ext}`));
+  const canAddVideos = isExtensionAllowed(KNOWN_VIDEO_EXTENSIONS.map((ext) => `video.${ext}`));
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -247,6 +272,30 @@ export function ChatPane({
         )}
         <form onSubmit={handleSubmit} className="flex items-end gap-2 px-4 py-4">
           <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
+          <input
+            ref={mediaInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            className="hidden"
+            onChange={handleMediaFileChange}
+          />
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleMediaFileChange}
+          />
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/*"
+            multiple
+            className="hidden"
+            onChange={handleMediaFileChange}
+          />
           <div ref={attachMenuRef} className="relative shrink-0">
             <button
               type="button"
@@ -257,18 +306,62 @@ export function ChatPane({
               <Paperclip className="h-4 w-4" />
             </button>
             {attachMenuOpen && (
-              <div className="absolute bottom-full left-0 z-20 mb-2 flex w-44 flex-col overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+              <div className="absolute bottom-full left-0 z-20 mb-2 flex w-52 flex-col overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-zinc-900">
                 <button
                   type="button"
                   onClick={() => {
                     setAttachMenuOpen(false);
                     fileInputRef.current?.click();
                   }}
-                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                  className="flex items-center gap-3 px-4 py-3 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
                 >
                   <Upload className="h-4 w-4" />
                   Upload files
                 </button>
+                {isMobile ? (
+                  (canAddPhotos || canAddVideos) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttachMenuOpen(false);
+                        mediaInputRef.current?.click();
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      Add Media
+                    </button>
+                  )
+                ) : (
+                  <>
+                    {canAddPhotos && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachMenuOpen(false);
+                          setCaptureMode("photo");
+                        }}
+                        className="flex items-center gap-3 px-4 py-3 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                        Add Photos
+                      </button>
+                    )}
+                    {canAddVideos && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachMenuOpen(false);
+                          setCaptureMode("video");
+                        }}
+                        className="flex items-center gap-3 px-4 py-3 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                      >
+                        <Video className="h-4 w-4" />
+                        Add Videos
+                      </button>
+                    )}
+                  </>
+                )}
                 {isExtensionAllowed(KNOWN_AUDIO_EXTENSIONS.map((ext) => `voice-message.${ext}`)) && (
                   <button
                     type="button"
@@ -276,7 +369,7 @@ export function ChatPane({
                       setAttachMenuOpen(false);
                       startRecording();
                     }}
-                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                    className="flex items-center gap-3 px-4 py-3 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
                   >
                     <Mic className="h-4 w-4" />
                     Record audio
@@ -285,6 +378,17 @@ export function ChatPane({
               </div>
             )}
           </div>
+          <CapturePopup
+            mode={captureMode}
+            onClose={() => setCaptureMode(null)}
+            onCapture={(file) => acceptFiles([file])}
+            onUploadInstead={() => {
+              const mode = captureMode;
+              setCaptureMode(null);
+              if (mode === "photo") photoInputRef.current?.click();
+              else if (mode === "video") videoInputRef.current?.click();
+            }}
+          />
           {isRecording && (
             <button
               type="button"

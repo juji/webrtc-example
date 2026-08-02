@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { syncAcceptedContact } from "@/lib/contacts";
 import { SERVER_URL } from "@/lib/api";
+import { syncAcceptedContact } from "@/lib/contacts";
 import { useSessionStore } from "@/lib/session-store";
 
 type ContactAcceptedData = {
@@ -19,14 +19,14 @@ export function ServiceWorkerRegistration() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     navigator.serviceWorker.register("/sw.js").then((registration) => {
-      // The SW's pushsubscriptionchange handler needs to know who to
-      // re-register a rotated subscription for — it has no access to
-      // localStorage/session state on its own. Told on every mount (not
-      // just login) so a SW that was still starting up at registration time
-      // still gets it once ready, and re-affirmed if the user changes.
-      if (!user) return;
+      // sw.js is a static file, never processed by Next's bundler — it has
+      // no way to read NEXT_PUBLIC_SERVER_URL itself, so the page (which
+      // does) hands it over. Config, not session data — the logged-in
+      // username sw.js also needs comes from IndexedDB directly instead
+      // (see lib/session-store.ts), since it survives independent of
+      // whether this effect happens to run again.
       const target = registration.active ?? navigator.serviceWorker.controller;
-      target?.postMessage({ type: "auth", username: user.username, serverUrl: SERVER_URL });
+      target?.postMessage({ type: "config", serverUrl: SERVER_URL });
     });
 
     async function handleContactAccepted(data: ContactAcceptedData) {

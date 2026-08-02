@@ -23,17 +23,7 @@ export function ContactsPopup({
   useEffect(() => {
     if (!open) return;
     setQuery("");
-    // TEMP: dummy data appended to visually check the sticky search bar — remove before merging.
-    listContacts(user.id).then((real) => {
-      const dummy: Contact[] = Array.from({ length: 30 }, (_, i) => ({
-        ownerId: user.id,
-        id: `dummy-${i}`,
-        username: `dummy-user-${i}`,
-        mlKemPublicKey: "",
-        acceptedAt: new Date().toISOString(),
-      }));
-      setContacts([...real, ...dummy]);
-    });
+    listContacts(user.id).then(setContacts);
   }, [open, user]);
 
   const filtered = contacts.filter((c) => c.username.toLowerCase().includes(query.toLowerCase()));

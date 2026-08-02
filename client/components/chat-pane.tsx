@@ -200,7 +200,7 @@ export function ChatPane({
               <Paperclip className="h-4 w-4" />
             </button>
             {attachMenuOpen && (
-              <div className="absolute bottom-full left-0 mb-2 flex w-44 flex-col overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+              <div className="absolute bottom-full left-0 z-20 mb-2 flex w-44 flex-col overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-zinc-900">
                 <button
                   type="button"
                   onClick={() => {

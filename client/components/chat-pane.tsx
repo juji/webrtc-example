@@ -56,10 +56,6 @@ export function ChatPane({
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const audioEnabled = process.env.NEXT_PUBLIC_ATTACHMENT_AUDIO_RECORDING === "true";
-  const videoEnabled = process.env.NEXT_PUBLIC_ATTACHMENT_VIDEO_RECORDING === "true";
-  const photoEnabled = process.env.NEXT_PUBLIC_ATTACHMENT_PHOTO_CAPTURE === "true";
-
   useEffect(() => {
     if (!attachMenuOpen) return;
     function handleClickOutside(e: MouseEvent) {
@@ -212,45 +208,39 @@ export function ChatPane({
                   <Upload className="h-4 w-4" />
                   Upload file
                 </button>
-                {audioEnabled && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAttachMenuOpen(false);
-                      setCaptureMode("audio");
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
-                  >
-                    <Mic className="h-4 w-4" />
-                    Record audio
-                  </button>
-                )}
-                {videoEnabled && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAttachMenuOpen(false);
-                      setCaptureMode("video");
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
-                  >
-                    <Video className="h-4 w-4" />
-                    Record video
-                  </button>
-                )}
-                {photoEnabled && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAttachMenuOpen(false);
-                      setCaptureMode("photo");
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
-                  >
-                    <Camera className="h-4 w-4" />
-                    Take photo
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttachMenuOpen(false);
+                    setCaptureMode("audio");
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                >
+                  <Mic className="h-4 w-4" />
+                  Record audio
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttachMenuOpen(false);
+                    setCaptureMode("video");
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                >
+                  <Video className="h-4 w-4" />
+                  Record video
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttachMenuOpen(false);
+                    setCaptureMode("photo");
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                >
+                  <Camera className="h-4 w-4" />
+                  Take photo
+                </button>
               </div>
             )}
           </div>

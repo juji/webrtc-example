@@ -148,10 +148,16 @@ export function ChatPane({
                 }`}
               >
                 {m.files[0] ? (
-                  <span className="flex items-center gap-2 text-sm underline">
+                  <a
+                    href={m.files[0].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={m.files[0].name}
+                    className="flex items-center gap-2 text-sm underline"
+                  >
                     <Paperclip className="h-3.5 w-3.5 shrink-0" />
                     {m.files[0].name}
-                  </span>
+                  </a>
                 ) : (
                   <span className="text-sm">{m.text}</span>
                 )}

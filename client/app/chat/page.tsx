@@ -170,8 +170,8 @@ export default function MockupPage() {
           selected ? "hidden" : "flex"
         }`}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-background/30 px-8 py-3 shadow-xl backdrop-blur-lg dark:border-white/10">
-          <h1 className="text-xl font-semibold text-black dark:text-zinc-50" style={{ fontFamily: "var(--font-libertinus-math)" }}>Primssg</h1>
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-background/30 px-8 py-3 backdrop-blur-lg dark:border-white/10">
+          <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-libertinus-math)" }}>Primssg</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
@@ -179,7 +179,7 @@ export default function MockupPage() {
                 setShowRequests(true);
               }}
               aria-label="Notifications"
-              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-black/10 dark:border-white/10"
             >
               <Bell className="h-4 w-4" />
               {requestCount > 0 && (
@@ -192,7 +192,7 @@ export default function MockupPage() {
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 aria-label="Menu"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 dark:border-white/10"
               >
                 <Menu className="h-4 w-4" />
               </button>
@@ -203,7 +203,7 @@ export default function MockupPage() {
                       setMenuOpen(false);
                       setShowQr(true);
                     }}
-                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
                   >
                     <QrCode className="h-4 w-4" />
                     QR Code
@@ -213,7 +213,7 @@ export default function MockupPage() {
                       setMenuOpen(false);
                       setShowContacts(true);
                     }}
-                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
                   >
                     <Users className="h-4 w-4" />
                     Contacts
@@ -223,7 +223,7 @@ export default function MockupPage() {
                       setMenuOpen(false);
                       setConfirmingLogout(true);
                     }}
-                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
                   >
                     <LogOut className="h-4 w-4 text-red-600 dark:text-red-500" />
                     Log out
@@ -260,7 +260,7 @@ export default function MockupPage() {
                 }`}
               >
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="font-medium text-black dark:text-zinc-50">{c.username}</span>
+                  <span className="font-bold">{c.username}</span>
                   <span className="truncate text-sm text-zinc-500">
                     {c.lastMessage ? c.lastMessage.message : "No messages yet"}
                   </span>
@@ -281,7 +281,7 @@ export default function MockupPage() {
               <MessageCircle className="h-6 w-6 text-zinc-400" />
             </div>
             <div className="flex flex-col gap-1">
-              <p className="font-medium text-black dark:text-zinc-50">No chats yet</p>
+              <p className="font-medium">No chats yet</p>
               <p className="text-sm text-zinc-500">Start a conversation to see it here.</p>
             </div>
           </div>

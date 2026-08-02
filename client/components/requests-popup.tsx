@@ -90,7 +90,7 @@ export function RequestsPopup({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search notifications"
-              className="w-full bg-transparent text-sm text-black outline-none placeholder:text-zinc-500 dark:text-zinc-50"
+              className="w-full bg-transparent text-sm outline-none placeholder:text-zinc-500"
             />
           </div>
         </div>
@@ -112,7 +112,7 @@ export function RequestsPopup({
                 }`}
               >
                 <div className="flex flex-col gap-0.5">
-                  <span className="font-medium text-black dark:text-zinc-50">{n.data.otherUsername}</span>
+                  <span className="font-bold">{n.data.otherUsername}</span>
                   <span className="text-sm text-zinc-500">{description(n)}</span>
                 </div>
                 {n.data.direction === "incoming" && n.status === "pending" ? (

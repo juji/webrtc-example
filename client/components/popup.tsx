@@ -78,17 +78,17 @@ export function Popup({
         }`}
       >
         <div className="flex items-center justify-between gap-4 px-6 pt-6 pb-4">
-          <h2 className="text-lg font-semibold tracking-tight text-black dark:text-zinc-50">{title}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-black/5 hover:text-black dark:hover:bg-white/10 dark:hover:text-zinc-50"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 text-black dark:text-zinc-50">{children}</div>
+        <div className="flex-1 overflow-y-auto px-6 py-6">{children}</div>
 
         {footerButtons.length > 0 && (
           <div className="flex items-center justify-between gap-2 bg-black/2 px-6 py-4 dark:bg-white/3">
@@ -100,7 +100,7 @@ export function Popup({
                     ? { backgroundColor: footerButtons[0].bgColor, color: footerButtons[0].fgColor }
                     : undefined
                 }
-                className="rounded-full px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 dark:text-zinc-50"
+                className="rounded-full px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90"
               >
                 {footerButtons[0].label}
               </button>
@@ -114,7 +114,7 @@ export function Popup({
                   key={b.label}
                   onClick={b.onClick}
                   style={b.bgColor || b.fgColor ? { backgroundColor: b.bgColor, color: b.fgColor } : undefined}
-                  className={`rounded-full px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 dark:text-zinc-50 ${
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 ${
                     footerButtons.length === 1 ? "w-full" : ""
                   }`}
                 >

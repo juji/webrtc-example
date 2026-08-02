@@ -229,12 +229,12 @@ export function ChatPane({
             <button
               onClick={onBack}
               aria-label="Back to chats"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-black md:hidden dark:text-zinc-50"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full md:hidden"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
-          <h1 className="text-base font-semibold text-black dark:text-zinc-50" style={{ fontFamily: "var(--font-libertinus-math)" }}>{username}</h1>
+          <h1 className="text-base font-bold" style={{ fontFamily: "var(--font-libertinus-math)" }}>{username}</h1>
         </div>
         <span
           aria-label={connected ? "Connected" : "Connecting…"}
@@ -338,7 +338,7 @@ export function ChatPane({
             {selectedFiles.map((file, i) => (
               <div
                 key={`${file.name}-${i}`}
-                className="flex w-fit items-center gap-2 rounded-full bg-black/5 px-3 py-1.5 text-sm text-black dark:bg-white/10 dark:text-zinc-50"
+                className="flex w-fit items-center gap-2 rounded-full bg-black/5 px-3 py-1.5 text-sm dark:bg-white/10"
               >
                 <Paperclip className="h-3.5 w-3.5 shrink-0" />
                 <span className="max-w-48 truncate">{file.name}</span>
@@ -346,7 +346,7 @@ export function ChatPane({
                   type="button"
                   onClick={() => removeSelectedFile(i)}
                   aria-label="Remove attachment"
-                  className="flex h-4 w-4 shrink-0 items-center justify-center text-zinc-500 hover:text-black dark:hover:text-zinc-50"
+                  className="flex h-4 w-4 shrink-0 items-center justify-center text-zinc-500"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -385,7 +385,7 @@ export function ChatPane({
               type="button"
               onClick={() => setAttachMenuOpen((v) => !v)}
               aria-label="Attach"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 dark:border-white/10"
             >
               <Paperclip className="h-4 w-4" />
             </button>
@@ -397,7 +397,7 @@ export function ChatPane({
                     setAttachMenuOpen(false);
                     fileInputRef.current?.click();
                   }}
-                  className="flex items-center gap-3 px-4 py-3 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                  className="flex items-center gap-3 px-4 py-3 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
                 >
                   <Upload className="h-4 w-4" />
                   Upload files
@@ -410,7 +410,7 @@ export function ChatPane({
                         setAttachMenuOpen(false);
                         mediaInputRef.current?.click();
                       }}
-                      className="flex items-center gap-3 px-4 py-3 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                      className="flex items-center gap-3 px-4 py-3 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
                     >
                       <ImageIcon className="h-4 w-4" />
                       Add Media
@@ -425,7 +425,7 @@ export function ChatPane({
                           setAttachMenuOpen(false);
                           setCaptureMode("photo");
                         }}
-                        className="flex items-center gap-3 px-4 py-3 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                        className="flex items-center gap-3 px-4 py-3 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
                       >
                         <ImageIcon className="h-4 w-4" />
                         Add Photos
@@ -438,7 +438,7 @@ export function ChatPane({
                           setAttachMenuOpen(false);
                           setCaptureMode("video");
                         }}
-                        className="flex items-center gap-3 px-4 py-3 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                        className="flex items-center gap-3 px-4 py-3 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
                       >
                         <Video className="h-4 w-4" />
                         Add Videos
@@ -453,7 +453,7 @@ export function ChatPane({
                       setAttachMenuOpen(false);
                       startRecording();
                     }}
-                    className="flex items-center gap-3 px-4 py-3 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                    className="flex items-center gap-3 px-4 py-3 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
                   >
                     <Mic className="h-4 w-4" />
                     Record audio
@@ -491,7 +491,7 @@ export function ChatPane({
             placeholder="Message"
             rows={1}
             style={{ maxHeight: MAX_TEXTAREA_HEIGHT }}
-            className="flex-1 resize-none overflow-y-auto rounded-2xl border border-black/10 bg-transparent px-4 py-2 text-sm text-black outline-none placeholder:text-zinc-500 focus:border-black/40 dark:border-white/10 dark:text-zinc-50 dark:focus:border-white/40"
+            className="flex-1 resize-none overflow-y-auto rounded-2xl border border-black/10 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-zinc-500 focus:border-black/40 dark:border-white/10 dark:focus:border-white/40"
           />
           <button
             type="submit"

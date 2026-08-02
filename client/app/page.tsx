@@ -41,7 +41,7 @@ export default function Home() {
         onSubmit={handleSubmit}
         className="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-black/10 bg-white p-8 dark:border-white/10 dark:bg-zinc-900"
       >
-        <h1 className="text-xl font-semibold text-black dark:text-zinc-50">
+        <h1 className="text-xl font-semibold">
           Enter a username
         </h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -52,7 +52,7 @@ export default function Home() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="username"
-          className="rounded border border-black/10 bg-transparent px-3 py-2 text-black outline-none focus:border-black/40 dark:border-white/10 dark:text-zinc-50 dark:focus:border-white/40"
+          className="rounded border border-black/10 bg-transparent px-3 py-2 outline-none focus:border-black/40 dark:border-white/10 dark:focus:border-white/40"
         />
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button

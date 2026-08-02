@@ -166,8 +166,8 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
             onClick={() => setTab("mine")}
             className={`flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               tab === "mine"
-                ? "bg-background text-black shadow-sm dark:text-zinc-50"
-                : "text-zinc-500 hover:text-black dark:hover:text-zinc-50"
+                ? "bg-background shadow-sm"
+                : "text-zinc-500"
             }`}
           >
             My QR Code
@@ -176,8 +176,8 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
             onClick={() => setTab("scan")}
             className={`flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               tab === "scan"
-                ? "bg-background text-black shadow-sm dark:text-zinc-50"
-                : "text-zinc-500 hover:text-black dark:hover:text-zinc-50"
+                ? "bg-background shadow-sm"
+                : "text-zinc-500"
             }`}
           >
             Scan QR Code
@@ -206,7 +206,7 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 rounded-full border border-black/10 px-4 py-2 text-sm font-medium text-black dark:border-white/10 dark:text-zinc-50"
+                  className="flex items-center gap-2 rounded-full border border-black/10 px-4 py-2 text-sm font-medium dark:border-white/10"
                 >
                   <Upload className="h-4 w-4" />
                   Upload an image instead
@@ -227,7 +227,7 @@ export function QrCodePopup({ open, onClose, user }: { open: boolean; onClose: (
                 )}
                 {verifyResult?.status === "verified" && (
                   <>
-                    <p className="font-medium text-black dark:text-zinc-50">
+                    <p className="font-medium">
                       Verified: {verifyResult.username}
                     </p>
                     <p className="text-sm text-zinc-500">Key fingerprint matches — safe to add as a contact.</p>

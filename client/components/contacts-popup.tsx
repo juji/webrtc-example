@@ -38,7 +38,7 @@ export function ContactsPopup({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search contacts"
-              className="w-full bg-transparent text-sm text-black outline-none placeholder:text-zinc-500 dark:text-zinc-50"
+              className="w-full bg-transparent text-sm outline-none placeholder:text-zinc-500"
             />
           </div>
         </div>
@@ -58,7 +58,7 @@ export function ContactsPopup({
                   }}
                   className="flex w-full items-center gap-3 rounded-lg border border-black/10 px-4 py-3 text-left hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
                 >
-                  <span className="font-medium text-black dark:text-zinc-50">{c.username}</span>
+                  <span className="font-bold">{c.username}</span>
                 </button>
               </li>
             ))}

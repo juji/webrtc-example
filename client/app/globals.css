@@ -1,10 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Dark mode forced on regardless of OS preference — dark: variants below
+   always apply instead of gating on prefers-color-scheme. */
+@custom-variant dark (&:where(*));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  color-scheme: light;
+  --background: #0a0a0a;
+  --foreground: #d4d4d4;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -12,14 +16,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    color-scheme: dark;
-  }
 }
 
 body {

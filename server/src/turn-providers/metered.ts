@@ -8,6 +8,6 @@ export const metered: TurnProvider = {
     const apiKey = process.env.METERED_API_KEY!
     const res = await fetch(`https://${appName}.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`)
     if (!res.ok) throw new Error(`metered responded ${res.status}`)
-    return res.json()
+    return { iceServers: await res.json(), renew: 0 }
   },
 }

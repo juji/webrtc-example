@@ -26,10 +26,10 @@ const CHUNK_SIZE = 16 * 1024;
 // to the server so the message doesn't strand at "in-transit" forever.
 const ACK_TIMEOUT_MS = 4000;
 
-async function fetchIceServers(): Promise<RTCIceServer[]> {
+async function fetchIceServers(): Promise<{ iceServers: RTCIceServer[]; renew: number }> {
   const res = await fetch(`${SERVER_URL}/turn/credentials`);
-  const { iceServers } = await res.json();
-  return iceServers;
+  const { creds, renew } = await res.json();
+  return { iceServers: creds.iceServers, renew };
 }
 
 // Deterministic: whoever sorts first initiates the offer, so no "call" button is needed.
@@ -214,13 +214,29 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
     // cleanup flip `cancelled` before any real connection is made.
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
+    let renewTimer: ReturnType<typeof setTimeout> | undefined;
 
-    fetchIceServers().then((iceServers) => {
+    fetchIceServers().then(({ iceServers, renew }) => {
       if (cancelled) return;
 
       const iceTransportPolicy = (process.env.NEXT_PUBLIC_ICE_TRANSPORT_POLICY ?? "all") as RTCIceTransportPolicy;
       const pc = new RTCPeerConnection({ iceServers, iceTransportPolicy });
       pcRef.current = pc;
+
+      // Some providers (coturn, cfSpeed) issue short-lived credentials — renew
+      // tells us when they expire so future ICE restarts/reconnects don't try
+      // stale ones. setConfiguration updates the connection in place; it
+      // doesn't affect candidates already gathered on the current connection.
+      function scheduleRenew(renewAt: number) {
+        if (!renewAt) return;
+        renewTimer = setTimeout(async () => {
+          const next = await fetchIceServers();
+          if (cancelled) return;
+          pc.setConfiguration({ iceServers: next.iceServers, iceTransportPolicy });
+          scheduleRenew(next.renew);
+        }, Math.max(0, renewAt - Date.now()));
+      }
+      scheduleRenew(renew);
 
       function send(message: SignalMessage) {
         useSignalingStore.getState().send({ ...message, to: peerUsername });
@@ -317,6 +333,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
 
     return () => {
       cancelled = true;
+      clearTimeout(renewTimer);
       unsubscribe?.();
       pcRef.current?.close();
     };

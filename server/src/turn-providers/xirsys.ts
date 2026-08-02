@@ -18,6 +18,6 @@ export const xirsys: TurnProvider = {
 
     const body = await res.json()
     if (body.s !== 'ok') throw new Error('xirsys returned non-ok status')
-    return [body.v.iceServers]
+    return { iceServers: [body.v.iceServers], renew: 0 }
   },
 }

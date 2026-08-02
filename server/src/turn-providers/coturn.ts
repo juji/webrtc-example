@@ -12,6 +12,6 @@ export const coturn: TurnProvider = {
     const expiry = Math.floor(Date.now() / 1000) + TTL_SECONDS
     const username = `${expiry}:webrtc`
     const credential = createHmac('sha1', secret).update(username).digest('base64')
-    return [{ urls: `turn:${host}`, username, credential }]
+    return { iceServers: [{ urls: `turn:${host}`, username, credential }], renew: expiry * 1000 }
   },
 }

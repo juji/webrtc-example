@@ -5,12 +5,15 @@ export const expressTurn: TurnProvider = {
   isConfigured: () =>
     !!(process.env.EXPRESSTURN_SERVICE && process.env.EXPRESSTURN_USERNAME && process.env.EXPRESSTURN_PASSWORD),
   async getIceServers() {
-    return [
-      {
-        urls: `turn:${process.env.EXPRESSTURN_SERVICE}`,
-        username: process.env.EXPRESSTURN_USERNAME!,
-        credential: process.env.EXPRESSTURN_PASSWORD!,
-      },
-    ]
+    return {
+      iceServers: [
+        {
+          urls: `turn:${process.env.EXPRESSTURN_SERVICE}`,
+          username: process.env.EXPRESSTURN_USERNAME!,
+          credential: process.env.EXPRESSTURN_PASSWORD!,
+        },
+      ],
+      renew: 0,
+    }
   },
 }

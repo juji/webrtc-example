@@ -16,8 +16,8 @@ turn.get('/credentials', async (c) => {
   if (!provider) return c.json({ error: 'TURN credentials are not configured' }, 500)
 
   try {
-    const iceServers = await provider.getIceServers()
-    return c.json({ iceServers })
+    const { iceServers, renew } = await provider.getIceServers()
+    return c.json({ creds: { iceServers }, renew })
   } catch {
     return c.json({ error: `${provider.name} TURN request failed` }, 502)
   }

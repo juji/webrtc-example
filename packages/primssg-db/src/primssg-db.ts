@@ -23,4 +23,10 @@ export abstract class PrimssgDB {
   // convos
   abstract addMessage(message: ConvoMessage): Promise<void>;
   abstract listMessages(ownerId: string, threadId: string): Promise<ConvoMessage[]>;
+
+  // file blobs — P2P-transferred files only exist as an in-memory blob: URL,
+  // which dies on browser restart. Storing the raw bytes in OPFS lets the
+  // caller mint a fresh blob: URL on the next session instead of a dead one.
+  abstract storeFileBlob(key: string, blob: Blob): Promise<void>;
+  abstract getFileBlob(key: string): Promise<Blob | undefined>;
 }

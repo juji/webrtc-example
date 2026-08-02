@@ -241,6 +241,31 @@ class PrimssgDBWasmEngine {
     return rows.map(rowToConvoMessage);
   }
 
+  // file blobs
+
+  private async getFileBlobsDir(): Promise<FileSystemDirectoryHandle> {
+    const root = await navigator.storage.getDirectory();
+    return root.getDirectoryHandle("file-blobs", { create: true });
+  }
+
+  async storeFileBlob(key: string, blob: Blob): Promise<void> {
+    const dir = await this.getFileBlobsDir();
+    const fileHandle = await dir.getFileHandle(key, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+  }
+
+  async getFileBlob(key: string): Promise<Blob | undefined> {
+    const dir = await this.getFileBlobsDir();
+    try {
+      const fileHandle = await dir.getFileHandle(key);
+      return await fileHandle.getFile();
+    } catch {
+      return undefined;
+    }
+  }
+
   // Dev-only raw-SQL escape hatch for /dev/sqlite — see worker-protocol.ts.
   // Not exposed on PrimssgDB; real callers never reach this.
   debugQuery(sql: string): DebugQueryResult {
@@ -296,7 +321,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   try {
     await connectReady;
     // biome-ignore lint: dispatch table, args shape is guaranteed by the caller-side proxy
-    const result = (engine[method] as (...a: unknown[]) => unknown)(...args);
+    const result = await (engine[method] as (...a: unknown[]) => unknown)(...args);
     const response: WorkerResponse = { id, ok: true, result };
     self.postMessage(response);
   } catch (err) {

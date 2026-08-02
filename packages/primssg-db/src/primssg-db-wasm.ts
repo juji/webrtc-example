@@ -149,6 +149,16 @@ export class PrimssgDBWasm extends PrimssgDB {
     return this.call("listMessages", [ownerId, threadId]);
   }
 
+  // file blobs
+
+  storeFileBlob(key: string, blob: Blob): Promise<void> {
+    return this.call("storeFileBlob", [key, blob]);
+  }
+
+  getFileBlob(key: string): Promise<Blob | undefined> {
+    return this.call("getFileBlob", [key]);
+  }
+
   // Dev-only raw-SQL escape hatch for /dev/sqlite. Not on PrimssgDB — only
   // reachable through a concrete PrimssgDBWasm reference, never through code
   // typed against the PrimssgDB interface real callers use.

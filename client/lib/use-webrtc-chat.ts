@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { uuidv7 } from "uuidv7";
 import { ackMessage, fetchFailoverMessages, readMessage, sendFailoverFile, sendFailoverMessage, SERVER_URL } from "./api";
 import { clearUnread, setLastMessage } from "./chats";
-import { addMessage as persistMessage, listMessages } from "./convos";
+import { addMessage as persistMessage, getFileBlob, listMessages, storeFileBlob } from "./convos";
 import { EMPTY_MESSAGES, useMessagesStore, type ChatMessage, type MessageStatus } from "./messages-store";
 import { useSignalingStore, type SignalMessage } from "./signaling-store";
 
@@ -120,15 +120,30 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
   // would insert every row, duplicating the whole history.
   useEffect(() => {
     let cancelled = false;
-    listMessages(selfId, peerId).then((rows) => {
+    listMessages(selfId, peerId).then(async (rows) => {
       if (cancelled) return;
-      const existingIds = new Set(useMessagesStore.getState().byPeer[peerUsername]?.map((m) => m.messageId));
       for (const row of rows) {
-        if (existingIds.has(row.messageId)) continue;
+        // Re-checked fresh each iteration (not a snapshot taken once before the
+        // loop): the loop now awaits getFileBlob per-row, so a concurrent second
+        // invocation of this same effect (React StrictMode's double-mount) can
+        // interleave with this one — a static pre-loop snapshot would let both
+        // decide "not present yet" for the same row and both call addMessage.
+        if (useMessagesStore.getState().byPeer[peerUsername]?.some((m) => m.messageId === row.messageId)) continue;
+        // blob: URLs die with the page that minted them — a stored file was
+        // a P2P transfer, whose bytes only otherwise live in that dead blob.
+        // Re-fetch from OPFS and mint a fresh URL, or drop the file if there's
+        // no stored copy (relay uploads never store one; nothing to rehydrate).
+        let files = row.files;
+        if (files[0]?.url.startsWith("blob:")) {
+          const blob = await getFileBlob(row.messageId);
+          files = blob ? [{ ...files[0], url: URL.createObjectURL(blob) }] : [];
+        }
+        if (cancelled) return;
+        if (useMessagesStore.getState().byPeer[peerUsername]?.some((m) => m.messageId === row.messageId)) continue;
         addMessage(peerUsername, {
           messageId: row.messageId,
           text: row.text,
-          files: row.files,
+          files,
           fromSelf: row.sender.id === selfId,
           status: row.status,
           createdAt: row.createdAt,
@@ -242,6 +257,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
             if (!transfer || transfer.id !== message.messageId) return;
             const blob = new Blob(transfer.chunks, { type: transfer.type });
             const url = URL.createObjectURL(blob);
+            storeFileBlob(message.messageId, blob);
             addAndPersist({
               messageId: message.messageId,
               files: [{ name: transfer.name, type: transfer.type, url }],
@@ -332,6 +348,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
   async function sendFile(file: File) {
     const messageId = uuidv7();
     const url = URL.createObjectURL(file);
+    storeFileBlob(messageId, file);
     addAndPersist({
       messageId,
       files: [{ name: file.name, type: file.type, url }],

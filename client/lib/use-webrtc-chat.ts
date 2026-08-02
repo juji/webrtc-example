@@ -239,7 +239,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
       scheduleRenew(renew);
 
       function send(message: SignalMessage) {
-        useSignalingStore.getState().send({ ...message, to: peerUsername });
+        useSignalingStore.getState().send({ ...message, to: peerId });
       }
 
       function setupDataChannel(dc: RTCDataChannel) {
@@ -297,11 +297,11 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
-          send({ type: "ice-candidate", candidate: event.candidate.toJSON(), to: peerUsername });
+          send({ type: "ice-candidate", candidate: event.candidate.toJSON(), to: peerId });
         }
       };
 
-      if (isInitiator(selfUsername, peerUsername)) {
+      if (isInitiator(selfId, peerId)) {
         setupDataChannel(pc.createDataChannel("chat"));
       } else {
         pc.ondatachannel = (event) => setupDataChannel(event.channel);
@@ -309,13 +309,13 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
 
       unsubscribe = useSignalingStore.getState().subscribe(async (message) => {
         if (message.type !== "offer" && message.type !== "answer" && message.type !== "ice-candidate") return;
-        if (message.from !== peerUsername) return;
+        if (message.from !== peerId) return;
 
         if (message.type === "offer") {
           await pc.setRemoteDescription(new RTCSessionDescription(message.sdp));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          send({ type: "answer", sdp: answer, to: peerUsername });
+          send({ type: "answer", sdp: answer, to: peerId });
         } else if (message.type === "answer") {
           await pc.setRemoteDescription(new RTCSessionDescription(message.sdp));
         } else if (message.type === "ice-candidate") {
@@ -323,10 +323,10 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
         }
       });
 
-      if (isInitiator(selfUsername, peerUsername)) {
+      if (isInitiator(selfId, peerId)) {
         pc.createOffer().then(async (offer) => {
           await pc.setLocalDescription(offer);
-          send({ type: "offer", sdp: offer, to: peerUsername });
+          send({ type: "offer", sdp: offer, to: peerId });
         });
       }
     });

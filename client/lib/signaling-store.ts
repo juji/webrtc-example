@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { SIGNALING_URL } from "./api";
 import type { MessageRow } from "./messages-store";
 
+// to/from are userIds — signaling.ts routes by userId, not username (usernames
+// are user-chosen display identity, not a stable server-side routing key).
 export type SignalMessage =
   | { type: "offer"; sdp: RTCSessionDescriptionInit; to: string; from?: string }
   | { type: "answer"; sdp: RTCSessionDescriptionInit; to: string; from?: string }
@@ -19,7 +21,7 @@ type SignalingListener = (message: SignalMessage | MessageStatusPush) => void;
 type SignalingState = {
   ws: WebSocket | null;
   connected: boolean;
-  connect: (username: string) => void;
+  connect: (userId: string) => void;
   disconnect: () => void;
   send: (message: SignalMessage & { to: string }) => void;
   subscribe: (listener: SignalingListener) => () => void;
@@ -39,10 +41,10 @@ export const useSignalingStore = create<SignalingState>()((set, get) => ({
   ws: null,
   connected: false,
 
-  connect: (username) => {
+  connect: (userId) => {
     if (get().ws) return;
 
-    const ws = new WebSocket(`${SIGNALING_URL}/signaling?username=${encodeURIComponent(username)}`);
+    const ws = new WebSocket(`${SIGNALING_URL}/signaling?userId=${encodeURIComponent(userId)}`);
 
     ws.onopen = () => {
       set({ connected: true });

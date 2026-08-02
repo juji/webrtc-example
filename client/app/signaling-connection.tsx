@@ -11,7 +11,7 @@ export function SignalingConnection() {
 
   useEffect(() => {
     if (!user) return;
-    connect(user.username);
+    connect(user.id);
     return () => disconnect();
   }, [user, connect, disconnect]);
 

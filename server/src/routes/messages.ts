@@ -62,7 +62,7 @@ messagesRoute.post('/', async (c) => {
     .values({ clientId, fromUserId: fromUser.id, toUserId: toUser.id, text })
     .returning()
 
-  notifyUser(toUsername, { type: 'new-message', message: row, fromUsername })
+  notifyUser(toUser.id, { type: 'new-message', message: row, fromUsername })
   await notifyUserByPush(toUser.id, {
     title: 'Primssg',
     body: `${fromUsername}: ${text ?? ''}`,
@@ -119,7 +119,7 @@ messagesRoute.post('/:id/ack', async (c) => {
   ])
 
   if (fromUser && toUser) {
-    notifyUser(fromUser.username, {
+    notifyUser(fromUser.id, {
       type: 'message-acked',
       id: row.id,
       clientId: row.clientId,
@@ -147,7 +147,7 @@ messagesRoute.post('/:id/read', async (c) => {
   ])
 
   if (fromUser && toUser) {
-    notifyUser(fromUser.username, {
+    notifyUser(fromUser.id, {
       type: 'message-read',
       id: row.id,
       clientId: row.clientId,
@@ -242,7 +242,7 @@ messagesRoute.post('/attachment/confirm', async (c) => {
     .values({ clientId, fromUserId: fromUser.id, toUserId: toUser.id, fileName, fileType, fileUrl })
     .returning()
 
-  notifyUser(toUsername, { type: 'new-message', message: row, fromUsername })
+  notifyUser(toUser.id, { type: 'new-message', message: row, fromUsername })
   await notifyUserByPush(toUser.id, {
     title: 'Primssg',
     body: `${fromUsername} sent a file: ${fileName}`,

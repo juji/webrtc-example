@@ -194,16 +194,20 @@ export function ChatPane({
                 }`}
               >
                 {m.files[0] ? (
-                  <a
-                    href={m.files[0].url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download={m.files[0].name}
-                    className="flex items-center gap-2 text-sm underline"
-                  >
-                    <Paperclip className="h-3.5 w-3.5 shrink-0" />
-                    {m.files[0].name}
-                  </a>
+                  m.files[0].type.startsWith("audio/") ? (
+                    <audio controls src={m.files[0].url} className="h-10 max-w-64" />
+                  ) : (
+                    <a
+                      href={m.files[0].url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={m.files[0].name}
+                      className="flex items-center gap-2 text-sm underline"
+                    >
+                      <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                      {m.files[0].name}
+                    </a>
+                  )
                 ) : (
                   <span className="text-sm">{m.text}</span>
                 )}

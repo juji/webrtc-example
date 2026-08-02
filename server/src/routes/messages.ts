@@ -1,4 +1,4 @@
-import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { Hono } from 'hono'
 import { and, eq, isNull } from 'drizzle-orm'
@@ -164,6 +164,11 @@ messagesRoute.delete('/:id', async (c) => {
   const [row] = await db.select().from(messagesTable).where(eq(messagesTable.id, id))
   if (!row) return c.json({ error: 'message not found' }, 404)
   if (!row.recipientReadAt) return c.json({ error: 'message not yet read by recipient' }, 409)
+
+  if (row.fileUrl) {
+    const key = row.fileUrl.split(`/${BUCKET}/`).pop()
+    if (key) await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
+  }
 
   await db.delete(messagesTable).where(eq(messagesTable.id, id))
 

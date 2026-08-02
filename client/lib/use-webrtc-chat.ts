@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { uuidv7 } from "uuidv7";
-import { ackMessage, fetchFailoverMessages, sendFailoverFile, sendFailoverMessage, SERVER_URL } from "./api";
+import { ackMessage, fetchFailoverMessages, readMessage, sendFailoverFile, sendFailoverMessage, SERVER_URL } from "./api";
 import { clearUnread, setLastMessage } from "./chats";
 import { addMessage as persistMessage, listMessages } from "./convos";
 import { EMPTY_MESSAGES, useMessagesStore, type ChatMessage, type MessageStatus } from "./messages-store";
@@ -60,6 +60,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
       ownerId: selfId,
       threadId: peerId,
       messageId: message.messageId,
+      serverId: message.serverId,
       sender: message.fromSelf ? { id: selfId, username: selfUsername } : { id: peerId, username: peerUsername },
       text: message.text,
       files: message.files,
@@ -151,6 +152,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
       for (const row of rows) {
         addAndPersist({
           messageId: row.clientId,
+          serverId: row.id,
           text: row.text ?? undefined,
           files: row.fileUrl ? [{ name: row.fileName!, type: row.fileType!, url: row.fileUrl }] : [],
           fromSelf: false,
@@ -166,8 +168,10 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peerUsername, selfUsername]);
 
-  // Viewing a thread marks the peer's delivered messages read — local status flip,
-  // best-effort echo over the data channel if still connected, no server involvement.
+  // Viewing a thread marks the peer's delivered messages read — local status
+  // flip, plus a receipt back to the sender: an echo over the data channel if
+  // still connected (P2P), or POST /:id/read for messages that came in via
+  // the server fallback (no data channel to echo over).
   useEffect(() => {
     const state = useMessagesStore.getState();
     const unread = (state.byPeer[peerUsername] ?? EMPTY_MESSAGES).filter((m) => !m.fromSelf && m.status === "sent");
@@ -182,6 +186,8 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
         updateStatusAndPersist(m.messageId, "read");
         if (dcRef.current?.readyState === "open") {
           dcRef.current.send(JSON.stringify({ kind: "read", messageId: m.messageId } satisfies DataChannelMessage));
+        } else if (m.serverId) {
+          readMessage(m.serverId);
         }
       }
     });

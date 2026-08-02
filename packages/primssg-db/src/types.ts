@@ -27,6 +27,7 @@ export type ConvoMessage = {
   ownerId: string; // which locally-registered identity this row belongs to
   threadId: string; // a contact's user id (1:1) or a group id (group chat)
   messageId: string; // ties this row back to the live message (use-webrtc-chat.ts)
+  serverId?: string; // server row id, only set for server-fallback-delivered messages
   sender: { id: string; username: string }; // id === ownerId if fromSelf
   text?: string;
   files: { name: string; type: string; url: string }[];

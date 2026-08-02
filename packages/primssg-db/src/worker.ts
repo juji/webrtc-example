@@ -28,13 +28,23 @@ class PrimssgDBWasmEngine {
   // migrations for existing local DBs go here, each guarded by its own check.
   private migrate(): void {
     const db = this.requireDb();
-    const columns = db.exec({
+
+    const conversationsColumns = db.exec({
       sql: "PRAGMA table_info(conversations)",
       rowMode: "object",
       returnValue: "resultRows",
     }) as unknown as { name: string }[];
-    if (!columns.some((c) => c.name === "unreadCount")) {
+    if (!conversationsColumns.some((c) => c.name === "unreadCount")) {
       db.exec("ALTER TABLE conversations ADD COLUMN unreadCount INTEGER NOT NULL DEFAULT 0");
+    }
+
+    const messagesColumns = db.exec({
+      sql: "PRAGMA table_info(messages)",
+      rowMode: "object",
+      returnValue: "resultRows",
+    }) as unknown as { name: string }[];
+    if (!messagesColumns.some((c) => c.name === "serverId")) {
+      db.exec("ALTER TABLE messages ADD COLUMN serverId TEXT");
     }
   }
 
@@ -190,10 +200,11 @@ class PrimssgDBWasmEngine {
 
   addMessage(message: ConvoMessage): void {
     this.requireDb().exec({
-      sql: `INSERT INTO messages (ownerId, threadId, messageId, senderId, senderUsername, text, files, status, createdAt, sentAt, deliveredAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      sql: `INSERT INTO messages (ownerId, threadId, messageId, serverId, senderId, senderUsername, text, files, status, createdAt, sentAt, deliveredAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(ownerId, messageId) DO UPDATE SET
               threadId = excluded.threadId,
+              serverId = excluded.serverId,
               senderId = excluded.senderId,
               senderUsername = excluded.senderUsername,
               text = excluded.text,
@@ -206,6 +217,7 @@ class PrimssgDBWasmEngine {
         message.ownerId,
         message.threadId,
         message.messageId,
+        message.serverId ?? null,
         message.sender.id,
         message.sender.username,
         message.text ?? null,
@@ -220,7 +232,7 @@ class PrimssgDBWasmEngine {
 
   listMessages(ownerId: string, threadId: string): ConvoMessage[] {
     const rows = this.requireDb().exec({
-      sql: `SELECT ownerId, threadId, messageId, senderId, senderUsername, text, files, status, createdAt, sentAt, deliveredAt
+      sql: `SELECT ownerId, threadId, messageId, serverId, senderId, senderUsername, text, files, status, createdAt, sentAt, deliveredAt
             FROM messages WHERE ownerId = ? AND threadId = ? ORDER BY createdAt`,
       bind: [ownerId, threadId],
       rowMode: "object",
@@ -265,6 +277,7 @@ function rowToConvoMessage(row: Record<string, string | null>): ConvoMessage {
     ownerId: row.ownerId!,
     threadId: row.threadId!,
     messageId: row.messageId!,
+    serverId: row.serverId ?? undefined,
     sender: { id: row.senderId!, username: row.senderUsername! },
     text: row.text ?? undefined,
     files: JSON.parse(row.files!),

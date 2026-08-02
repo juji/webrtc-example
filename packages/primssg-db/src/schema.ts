@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS messages (
   ownerId TEXT NOT NULL,
   threadId TEXT NOT NULL,
   messageId TEXT NOT NULL,
+  serverId TEXT,
   senderId TEXT NOT NULL,
   senderUsername TEXT NOT NULL,
   text TEXT,

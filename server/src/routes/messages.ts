@@ -130,12 +130,40 @@ messagesRoute.post('/:id/ack', async (c) => {
   return c.json({ message: row })
 })
 
+messagesRoute.post('/:id/read', async (c) => {
+  const id = c.req.param('id')
+
+  const [row] = await db
+    .update(messagesTable)
+    .set({ recipientReadAt: new Date() })
+    .where(eq(messagesTable.id, id))
+    .returning()
+
+  if (!row) return c.json({ error: 'message not found' }, 404)
+
+  const [fromUser, toUser] = await Promise.all([
+    db.select().from(users).where(eq(users.id, row.fromUserId)).then(([u]) => u),
+    db.select().from(users).where(eq(users.id, row.toUserId)).then(([u]) => u),
+  ])
+
+  if (fromUser && toUser) {
+    notifyUser(fromUser.username, {
+      type: 'message-read',
+      id: row.id,
+      clientId: row.clientId,
+      peerUsername: toUser.username,
+    })
+  }
+
+  return c.json({ message: row })
+})
+
 messagesRoute.delete('/:id', async (c) => {
   const id = c.req.param('id')
 
   const [row] = await db.select().from(messagesTable).where(eq(messagesTable.id, id))
   if (!row) return c.json({ error: 'message not found' }, 404)
-  if (!row.recipientAckedAt) return c.json({ error: 'message not yet acked by recipient' }, 409)
+  if (!row.recipientReadAt) return c.json({ error: 'message not yet read by recipient' }, 409)
 
   await db.delete(messagesTable).where(eq(messagesTable.id, id))
 

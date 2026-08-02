@@ -193,6 +193,12 @@ export async function ackMessage(id: string): Promise<MessageRow> {
   return message;
 }
 
+export async function readMessage(id: string): Promise<MessageRow> {
+  const res = await fetch(`${SERVER_URL}/messages/${id}/read`, { method: "POST" });
+  const { message } = await res.json();
+  return message;
+}
+
 export async function deleteMessage(id: string): Promise<void> {
   await fetch(`${SERVER_URL}/messages/${id}`, { method: "DELETE" });
 }

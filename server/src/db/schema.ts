@@ -54,5 +54,6 @@ export const messages = pgTable('messages', {
   fileType: text('file_type'),
   fileUrl: text('file_url'),
   recipientAckedAt: timestamp('recipient_acked_at'),
+  recipientReadAt: timestamp('recipient_read_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })

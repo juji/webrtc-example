@@ -8,9 +8,10 @@ import { useSessionStore } from "@/lib/session-store";
 import { useSignalingStore } from "@/lib/signaling-store";
 
 // Root-level (not per-chat-page) subscriber for message-status pushes, so a
-// new-message/message-acked notice updates the right conversation regardless
-// of which chat page (if any) is currently mounted — same reasoning as
-// SignalingConnection living at the root instead of inside a chat page.
+// new-message/message-acked/message-read notice updates the right
+// conversation regardless of which chat page (if any) is currently mounted —
+// same reasoning as SignalingConnection living at the root instead of inside
+// a chat page.
 export function MessageStatusListener() {
   const user = useSessionStore((s) => s.user);
   const addMessage = useMessagesStore((s) => s.addMessage);
@@ -19,8 +20,6 @@ export function MessageStatusListener() {
   useEffect(() => {
     if (!user) return;
     return useSignalingStore.getState().subscribe((message) => {
-      if (message.type !== "new-message" && message.type !== "message-acked") return;
-
       if (message.type === "new-message") {
         const row = message.message;
         // Awaited before addMessage: addMessage's store update synchronously
@@ -30,6 +29,7 @@ export function MessageStatusListener() {
         incrementUnread(user.id, row.fromUserId).then(() => {
           addMessage(message.fromUsername, {
             messageId: row.clientId,
+            serverId: row.id,
             text: row.text ?? undefined,
             files: row.fileUrl ? [{ name: row.fileName!, type: row.fileType!, url: row.fileUrl }] : [],
             fromSelf: false,
@@ -38,8 +38,13 @@ export function MessageStatusListener() {
           });
         });
         ackMessage(row.id);
-      } else {
+      } else if (message.type === "message-acked") {
+        // Delivery confirmed — the row stays server-side until the recipient
+        // actually reads it (message-read below), so a real read receipt is
+        // possible for server-relayed messages, not just live P2P ones.
         updateStatus(message.peerUsername, message.clientId, "sent");
+      } else if (message.type === "message-read") {
+        updateStatus(message.peerUsername, message.clientId, "read");
         deleteMessage(message.id);
       }
     });

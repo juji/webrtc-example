@@ -4,6 +4,10 @@ export type MessageStatus = "sending" | "in-transit" | "sent" | "read";
 
 export type ChatMessage = {
   messageId: string;
+  // Server row id — only set for messages received via the server-fallback
+  // path (P2P-delivered messages never touch the server). Lets the
+  // read-marking effect in use-webrtc-chat.ts call POST /:id/read.
+  serverId?: string;
   text?: string;
   files: { name: string; type: string; url: string }[];
   fromSelf: boolean;

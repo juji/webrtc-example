@@ -127,7 +127,7 @@ export function ChatPane({
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
-          <h1 className="text-base font-semibold text-black dark:text-zinc-50">{username}</h1>
+          <h1 className="text-base font-semibold text-black dark:text-zinc-50" style={{ fontFamily: "var(--font-libertinus-math)" }}>{username}</h1>
         </div>
         <span
           aria-label={connected ? "Connected" : "Connecting…"}

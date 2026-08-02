@@ -43,7 +43,7 @@ export function SqliteTab() {
       </p>
 
       <div className="flex flex-wrap gap-2">
-        {["keys", "contacts", "conversations"].map((table) => (
+        {["keys", "contacts", "conversations", "messages"].map((table) => (
           <button
             key={table}
             onClick={() => setSql(`SELECT * FROM ${table}`)}

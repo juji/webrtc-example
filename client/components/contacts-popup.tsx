@@ -23,7 +23,17 @@ export function ContactsPopup({
   useEffect(() => {
     if (!open) return;
     setQuery("");
-    listContacts(user.id).then(setContacts);
+    // TEMP: dummy data appended to visually check the sticky search bar — remove before merging.
+    listContacts(user.id).then((real) => {
+      const dummy: Contact[] = Array.from({ length: 30 }, (_, i) => ({
+        ownerId: user.id,
+        id: `dummy-${i}`,
+        username: `dummy-user-${i}`,
+        mlKemPublicKey: "",
+        acceptedAt: new Date().toISOString(),
+      }));
+      setContacts([...real, ...dummy]);
+    });
   }, [open, user]);
 
   const filtered = contacts.filter((c) => c.username.toLowerCase().includes(query.toLowerCase()));
@@ -31,14 +41,16 @@ export function ContactsPopup({
   return (
     <Popup open={open} onClose={onClose} title="Contacts" buttons={[]}>
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-2 rounded-full border border-black/10 px-4 py-2 dark:border-white/10">
-          <Search className="h-4 w-4 shrink-0 text-zinc-500" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search contacts"
-            className="w-full bg-transparent text-sm text-black outline-none placeholder:text-zinc-500 dark:text-zinc-50"
-          />
+        <div className="sticky -top-6 z-10 -mx-6 -mt-6 bg-background px-6 pt-6 pb-4">
+          <div className="flex items-center gap-2 rounded-full border border-black/10 px-4 py-2 dark:border-white/10">
+            <Search className="h-4 w-4 shrink-0 text-zinc-500" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search contacts"
+              className="w-full bg-transparent text-sm text-black outline-none placeholder:text-zinc-500 dark:text-zinc-50"
+            />
+          </div>
         </div>
 
         {filtered.length === 0 ? (

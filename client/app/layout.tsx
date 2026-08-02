@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Libertinus_Math } from "next/font/google";
 import "./globals.css";
 import { DevPanel } from "@/components/dev-panel";
 import { MessageStatusListener } from "./message-status-listener";
@@ -14,6 +14,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const libertinusMath = Libertinus_Math({
+  variable: "--font-libertinus-math",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -38,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${libertinusMath.variable} h-full antialiased`}
     >
       <body className="h-full flex flex-col">
         <ServiceWorkerRegistration />

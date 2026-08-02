@@ -1,8 +1,8 @@
 "use client";
 
-import { Bell, LogOut, MessageCircle, QrCode, Users } from "lucide-react";
+import { Bell, LogOut, Menu, MessageCircle, QrCode, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { ChatPane } from "@/components/chat-pane";
 import { ContactsPopup } from "@/components/contacts-popup";
 import { Popup } from "@/components/popup";
@@ -63,6 +63,8 @@ export default function MockupPage() {
   const [needsNotificationPrompt, setNeedsNotificationPrompt] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
   const [conversations, setConversations] = useState<(Conversation & { username: string })[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   async function refreshConversations() {
     if (!user) return;
@@ -80,6 +82,17 @@ export default function MockupPage() {
     refreshConversations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
 
   // Re-fetch conversations (including lastMessage) whenever the live
   // in-memory message store changes for any peer — the sidebar needs to
@@ -157,37 +170,62 @@ export default function MockupPage() {
         }`}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-background/30 px-8 py-6 shadow-xl backdrop-blur-lg dark:border-white/10">
-          <h1 className="text-xl font-semibold text-black dark:text-zinc-50">Chats</h1>
-          <div className="flex items-center gap-2">
+          <h1 className="text-xl font-semibold text-black dark:text-zinc-50" style={{ fontFamily: "var(--font-libertinus-math)" }}>Primssg</h1>
+          <div ref={menuRef} className="relative">
             <button
-              onClick={() => {
-                setHighlightNotificationId(null);
-                setShowRequests(true);
-              }}
-              aria-label="Notifications"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Menu"
               className="relative flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
             >
-              <Bell className="h-4 w-4" />
+              <Menu className="h-4 w-4" />
               {requestCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium text-white">
                   {requestCount > 9 ? "9+" : requestCount}
                 </span>
               )}
             </button>
-            <button
-              onClick={() => setShowQr(true)}
-              aria-label="Show my QR code"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
-            >
-              <QrCode className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setShowContacts(true)}
-              aria-label="Contacts"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black dark:border-white/10 dark:text-zinc-50"
-            >
-              <Users className="h-4 w-4" />
-            </button>
+            {menuOpen && (
+              <div className="absolute top-full right-0 mt-2 flex w-48 flex-col overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setHighlightNotificationId(null);
+                    setShowRequests(true);
+                  }}
+                  className="flex items-center justify-between gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                >
+                  <span className="flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    Notifications
+                  </span>
+                  {requestCount > 0 && (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium text-white">
+                      {requestCount > 9 ? "9+" : requestCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setShowQr(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                >
+                  <QrCode className="h-4 w-4" />
+                  QR Code
+                </button>
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setShowContacts(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                >
+                  <Users className="h-4 w-4" />
+                  Contacts
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

@@ -23,6 +23,31 @@ services:
       - "9001:9001"
     volumes:
       - rustfs-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Provisions the `attachments` bucket and its 1-day expiry lifecycle rule —
+  # infra setup, not something app code should trigger implicitly on first
+  # upload (see plans/encryption/discussion.md: encrypting `messages.file`
+  # means the server can no longer read the S3 key back out to delete objects
+  # itself, so expiry has to be a real bucket policy, not app-triggered
+  # DeleteObjectCommand calls). Runs once per `docker compose up` and exits.
+  rustfs-init:
+    image: rustfs/rc
+    restart: "no"
+    depends_on:
+      rustfs:
+        condition: service_healthy
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        rc alias set local http://rustfs:9000 webrtc webrtcsecret &&
+        rc mb local/attachments --ignore-existing &&
+        rc ilm rule add local/attachments --expiry-days 1
 
   coturn:
     image: coturn/coturn

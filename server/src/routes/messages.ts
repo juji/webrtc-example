@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { Hono } from 'hono'
 import { and, eq, isNull } from 'drizzle-orm'
@@ -141,12 +141,9 @@ messagesRoute.delete('/:id', async (c) => {
   if (row.fromUserId !== c.var.userId) return c.json({ error: 'not the sender of this message' }, 403)
   if (!row.recipientReadAt) return c.json({ error: 'message not yet read by recipient' }, 409)
 
-  if (row.file) {
-    const { url } = JSON.parse(row.file) as { url: string }
-    const key = url.split(`/${BUCKET}/`).pop()
-    if (key) await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
-  }
-
+  // Attachment object cleanup is a bucket lifecycle rule (see docker-compose.yml's
+  // rustfs-init), not app-triggered — see plans/encryption/discussion.md: once
+  // `file` is ciphertext the server can't read the S3 key back out of it anyway.
   await db.delete(messagesTable).where(eq(messagesTable.id, id))
 
   return c.json({ ok: true })

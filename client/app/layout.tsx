@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Libertinus_Math } from "next/font/google";
+import "vistaview/style.css";
 import "./globals.css";
 import { DevPanel } from "@/components/dev-panel";
 import { MessageStatusListener } from "./message-status-listener";

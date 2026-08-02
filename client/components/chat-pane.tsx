@@ -1,7 +1,9 @@
 "use client";
 
 import { ArrowLeft, Image as ImageIcon, Mic, Paperclip, Send, Square, Upload, Video, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { vistaView, type VistaImgConfig } from "vistaview";
+import { nativeVideo, type VistaVideoConfig } from "vistaview/extensions/native-video";
 import { isExtensionAllowed } from "@/lib/attachment-validation";
 import { useWebRtcChat } from "@/lib/use-webrtc-chat";
 import { CapturePopup, type CaptureMode } from "./capture-popup";
@@ -31,6 +33,11 @@ function formatTime(iso: string): string {
 }
 
 const MAX_TEXTAREA_HEIGHT = 160;
+
+// vistaview's native-video extension renders an <img src=""> when no poster is
+// given — a 1x1 transparent PNG data URI avoids that empty-src browser request.
+const TRANSPARENT_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
 // Every extension a MediaRecorder-produced audio file could plausibly need across browsers.
 const KNOWN_AUDIO_EXTENSIONS = ["webm", "ogg", "mp4", "m4a", "aac", "wav"];
@@ -65,6 +72,28 @@ export function ChatPane({
   const videoInputRef = useRef<HTMLInputElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Every image/video across the conversation, in render order, so the lightbox
+  // can page through the whole gallery instead of just the clicked message's file.
+  const galleryItems = useMemo(() => {
+    const items: (VistaImgConfig | VistaVideoConfig)[] = [];
+    for (const m of messages) {
+      const file = m.files[0];
+      if (!file) continue;
+      if (file.type.startsWith("image/")) {
+        items.push({ src: file.url, alt: file.name });
+      } else if (file.type.startsWith("video/")) {
+        items.push({ src: file.url, type: "video", poster: TRANSPARENT_PNG });
+      }
+    }
+    return items;
+  }, [messages]);
+
+  function openGallery(url: string) {
+    const index = galleryItems.findIndex((item) => item.src === url);
+    if (index === -1) return;
+    vistaView({ elements: galleryItems, extensions: [nativeVideo()] })?.open(index);
+  }
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
@@ -221,6 +250,29 @@ export function ChatPane({
                 {m.files[0] ? (
                   m.files[0].type.startsWith("audio/") ? (
                     <audio controls src={m.files[0].url} className="h-10 max-w-64" />
+                  ) : m.files[0].type.startsWith("image/") ? (
+                    <button type="button" onClick={() => openGallery(m.files[0].url)} className="block">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- object/remote URL, not a static asset Next can optimize */}
+                      <img
+                        src={m.files[0].url}
+                        alt={m.files[0].name}
+                        className="max-h-64 max-w-64 rounded-lg object-cover"
+                      />
+                    </button>
+                  ) : m.files[0].type.startsWith("video/") ? (
+                    <button
+                      type="button"
+                      onClick={() => openGallery(m.files[0].url)}
+                      className="relative block max-h-64 max-w-64"
+                    >
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                      <video src={m.files[0].url} muted className="max-h-64 max-w-64 rounded-lg object-cover" />
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white">
+                          <Video className="h-4 w-4" />
+                        </span>
+                      </span>
+                    </button>
                   ) : (
                     <a
                       href={m.files[0].url}

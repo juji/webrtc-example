@@ -107,7 +107,7 @@ messagesRoute.post('/:id/read', async (c) => {
   const id = c.req.param('id')
 
   const [existing] = await db.select().from(messagesTable).where(eq(messagesTable.id, id))
-  if (!existing) return c.json({ error: 'message not found' }, 404)
+  if (!existing) return c.json({ ok: true })
   if (existing.toUserId !== c.var.userId) return c.json({ error: 'not the recipient of this message' }, 403)
 
   const [row] = await db
@@ -130,23 +130,13 @@ messagesRoute.post('/:id/read', async (c) => {
     })
   }
 
-  return c.json({ message: row })
-})
-
-messagesRoute.delete('/:id', async (c) => {
-  const id = c.req.param('id')
-
-  const [row] = await db.select().from(messagesTable).where(eq(messagesTable.id, id))
-  if (!row) return c.json({ error: 'message not found' }, 404)
-  if (row.fromUserId !== c.var.userId) return c.json({ error: 'not the sender of this message' }, 403)
-  if (!row.recipientReadAt) return c.json({ error: 'message not yet read by recipient' }, 409)
-
-  // Attachment object cleanup is a bucket lifecycle rule (see docker-compose.yml's
-  // rustfs-init), not app-triggered — see plans/encryption/discussion.md: once
-  // `file` is ciphertext the server can't read the S3 key back out of it anyway.
+  // Once the recipient has read it the message is delivered, full stop — the
+  // row's only job is failover delivery, so delete it here rather than trusting
+  // the best-effort message-read push above to reach the sender's client and
+  // have it DELETE (a stale/dead sender socket can swallow that push).
   await db.delete(messagesTable).where(eq(messagesTable.id, id))
 
-  return c.json({ ok: true })
+  return c.json({ message: row })
 })
 
 messagesRoute.post('/attachment/presign', async (c) => {

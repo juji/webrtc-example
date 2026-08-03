@@ -37,7 +37,3 @@ export function PUT<T>(path: string, body?: unknown, init?: RequestInit): Promis
 export function PATCH<T>(path: string, body?: unknown, init?: RequestInit): Promise<T> {
   return withBody<T>("PATCH", path, body, init);
 }
-
-export function DELETE<T>(path: string, init?: RequestInit): Promise<T> {
-  return request(path, { method: "DELETE", ...init });
-}

@@ -93,8 +93,9 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
 
   // Server-dispatch fallback: used when the channel isn't open, and when a P2P
   // send's ack-timeout fires. Shared by both sendMessage and sendFile. The row
-  // id isn't tracked client-side — message-acked carries it directly, so the
-  // sender's final DELETE works even after closing and reopening the app.
+  // id isn't tracked client-side — message-acked carries it directly, and the
+  // server deletes the row once the recipient reads it, so no client-side
+  // cleanup is needed even after closing and reopening the app.
   function dispatchTextViaServer(messageId: string, text: string) {
     sendFailoverMessage({ clientId: messageId, toUsername: peerUsername, text }).then(() =>
       updateStatusAndPersist(messageId, "sent"),

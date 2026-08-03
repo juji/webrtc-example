@@ -1,7 +1,7 @@
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
 import { generateKeys, loadKeys, storeKeys, toBase64 } from "./keys";
 import type { MessageRow } from "./messages-store";
-import { DELETE, GET, POST } from "./request";
+import { GET, POST } from "./request";
 
 export const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:4000";
 export const SIGNALING_URL = SERVER_URL.replace(/^http/, "ws");
@@ -146,10 +146,6 @@ export async function ackMessage(id: string): Promise<MessageRow> {
 export async function readMessage(id: string): Promise<MessageRow> {
   const { message } = await POST<{ message: MessageRow }>(`/messages/${id}/read`);
   return message;
-}
-
-export async function deleteMessage(id: string): Promise<void> {
-  await DELETE(`/messages/${id}`);
 }
 
 export async function sendFailoverFile(args: {

@@ -121,7 +121,9 @@ try {
   // before closing his tab.
   await waitForCondition(async () => {
     const rows = await sql`SELECT recipient_acked_at FROM messages WHERE text = ${message}`;
-    return rows.length === 1 && rows[0].recipient_acked_at !== null;
+    // The server deletes the row once the recipient reads it, so "gone" is a
+    // strictly stronger signal than acked — either way delivery is confirmed.
+    return rows.length === 0 || rows[0].recipient_acked_at !== null;
   });
   await bob.context.close();
 
@@ -129,7 +131,7 @@ try {
   // instant her WebSocket reopens, completing the two-sided ack. Zustand state
   // isn't persisted (accepted limitation, see checklist.md), so a fresh session
   // can't show the old bubble flip to "sent" — the durable guarantee this phase
-  // makes is server-side: the row gets deleted once the sender's ack completes.
+  // makes is server-side: the row is deleted once the recipient reads it.
   const alice2 = await alice.context.newPage();
   await login(alice2, aliceName);
   await openChatWith(alice2, bobName);

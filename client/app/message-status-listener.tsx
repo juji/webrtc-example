@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ackMessage, deleteMessage } from "@/lib/api";
+import { ackMessage } from "@/lib/api";
 import { incrementUnread } from "@/lib/chats";
 import { useMessagesStore } from "@/lib/messages-store";
 import { playNotificationSound } from "@/lib/notification-sound";
@@ -62,7 +62,6 @@ export function MessageStatusListener() {
         updateStatus(message.peerUsername, message.clientId, "sent");
       } else if (message.type === "message-read") {
         updateStatus(message.peerUsername, message.clientId, "read");
-        deleteMessage(message.id);
       }
     });
   }, [user, addMessage, updateStatus]);

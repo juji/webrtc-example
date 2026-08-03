@@ -21,6 +21,11 @@ const jsQrSource = readFileSync(createRequire(import.meta.url).resolve("jsqr"), 
 export async function newUser(browser) {
   const context = await browser.newContext();
   const page = await context.newPage();
+  if (process.env.E2E_DEBUG) {
+    page.on("console", (m) => console.log(`[console] ${m.text()}`));
+    page.on("pageerror", (e) => console.log(`[pageerror] ${e}`));
+    page.on("requestfailed", (r) => console.log(`[requestfailed] ${r.url()} ${r.failure()?.errorText}`));
+  }
   return { context, page };
 }
 

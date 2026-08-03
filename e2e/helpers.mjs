@@ -25,6 +25,8 @@ export async function newUser(browser) {
     page.on("console", (m) => console.log(`[console] ${m.text()}`));
     page.on("pageerror", (e) => console.log(`[pageerror] ${e}`));
     page.on("requestfailed", (r) => console.log(`[requestfailed] ${r.url()} ${r.failure()?.errorText}`));
+    page.on("request", (r) => console.log(`[request] ${r.method()} ${r.url()}`));
+    page.on("response", (r) => console.log(`[response] ${r.status()} ${r.url()}`));
   }
   return { context, page };
 }

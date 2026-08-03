@@ -43,6 +43,17 @@ async function waitForCondition(check, { timeoutMs = 5_000, intervalMs = 200, on
 
 const browser = await chromium.launch();
 
+// pages created via context.newPage() (reused sessions) miss newUser()'s
+// E2E_DEBUG listeners — attach them here too so CI logs show their traffic.
+function debugPage(page) {
+  if (!process.env.E2E_DEBUG) return;
+  page.on("console", (m) => console.log(`[console] ${m.text()}`));
+  page.on("pageerror", (e) => console.log(`[pageerror] ${e}`));
+  page.on("requestfailed", (r) => console.log(`[requestfailed] ${r.url()} ${r.failure()?.errorText}`));
+  page.on("request", (r) => console.log(`[request] ${r.method()} ${r.url()}`));
+  page.on("response", (r) => console.log(`[response] ${r.status()} ${r.url()}`));
+}
+
 try {
   const alice = await newUser(browser);
   await login(alice.page, aliceName);
@@ -112,6 +123,7 @@ try {
   // catches up via the one-shot GET fetch on chat-page mount, never a poll.
   // Same context as before (his local keys live there), fresh page.
   const bob2 = await bob.context.newPage();
+  debugPage(bob2);
   await login(bob2, bobName);
   await openChatWith(bob2, aliceName);
   await bob2.waitForSelector(`text=${message}`, { timeout: 10_000 });
@@ -133,6 +145,7 @@ try {
   // can't show the old bubble flip to "sent" — the durable guarantee this phase
   // makes is server-side: the row is deleted once the recipient reads it.
   const alice2 = await alice.context.newPage();
+  debugPage(alice2);
   await login(alice2, aliceName);
   await openChatWith(alice2, bobName);
   await waitForCondition(async () => {

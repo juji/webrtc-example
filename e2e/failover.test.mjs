@@ -22,12 +22,13 @@ const qrDir = mkdtempSync(path.join(tmpdir(), "webrtc-e2e-fo-qr-"));
 
 const sql = postgres(DATABASE_URL);
 
-async function waitForCondition(check, { timeoutMs = 5_000, intervalMs = 200 } = {}) {
+async function waitForCondition(check, { timeoutMs = 5_000, intervalMs = 200, onTimeout } = {}) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await check()) return;
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
+  if (process.env.E2E_DEBUG && onTimeout) console.log(`[waitForCondition] timed out, dumping state: ${await onTimeout()}`);
   throw new Error("waitForCondition: timed out");
 }
 
@@ -74,10 +75,17 @@ try {
   // The failover POST is fired async right after the optimistic local add —
   // wait for the server to actually have the row before closing alice's tab,
   // otherwise closing the context aborts the in-flight request.
-  await waitForCondition(async () => {
-    const rows = await sql`SELECT id FROM messages WHERE text = ${message}`;
-    return rows.length > 0;
-  });
+  await waitForCondition(
+    async () => {
+      const rows = await sql`SELECT id FROM messages WHERE text = ${message}`;
+      return rows.length > 0;
+    },
+    {
+      timeoutMs: 10_000,
+      onTimeout: async () =>
+        JSON.stringify(await sql`SELECT id, text, from_user_id, to_user_id FROM messages ORDER BY created_at DESC LIMIT 5`),
+    },
+  );
 
   // Alice goes offline (closes her tab) before bob ever sees the message —
   // the row must sit durably in the server's failover store either way. Her

@@ -28,6 +28,10 @@ const ACK_TIMEOUT_MS = 4000;
 
 async function fetchIceServers(): Promise<{ iceServers: RTCIceServer[]; renew: number }> {
   const res = await fetch(`${SERVER_URL}/turn/credentials`);
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(`failed to fetch TURN credentials: ${error}`);
+  }
   const { creds, renew } = await res.json();
   return { iceServers: creds.iceServers, renew };
 }

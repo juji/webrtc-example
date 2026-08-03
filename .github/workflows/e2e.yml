@@ -13,6 +13,11 @@ jobs:
       RUSTFS_ACCESS_KEY: webrtc
       RUSTFS_SECRET_KEY: webrtcsecret
       NEXT_PUBLIC_SERVER_URL: http://localhost:4000
+      # Without any TURN provider configured, GET /turn/credentials 500s and
+      # every chat's WebRTC connection fails. cfSpeed (Cloudflare's public
+      # speed-test TURN endpoint) needs no secret, just this flag — same
+      # provider local dev already uses (see server/.env).
+      CF_SPEED_SERVICE: "1"
       # Optional: only needed for NAT traversal, not for same-machine CI browsers.
       METERED_APP_NAME: ${{ secrets.METERED_APP_NAME }}
       METERED_API_KEY: ${{ secrets.METERED_API_KEY }}

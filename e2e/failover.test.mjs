@@ -24,11 +24,20 @@ const sql = postgres(DATABASE_URL);
 
 async function waitForCondition(check, { timeoutMs = 5_000, intervalMs = 200, onTimeout } = {}) {
   const deadline = Date.now() + timeoutMs;
+  let attempts = 0;
   while (Date.now() < deadline) {
+    attempts++;
     if (await check()) return;
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
-  if (process.env.E2E_DEBUG && onTimeout) console.log(`[waitForCondition] timed out, dumping state: ${await onTimeout()}`);
+  console.log(`[waitForCondition] timed out after ${attempts} attempts over ${timeoutMs}ms`);
+  if (onTimeout) {
+    try {
+      console.log(`[waitForCondition] state dump: ${await onTimeout()}`);
+    } catch (err) {
+      console.log(`[waitForCondition] onTimeout itself threw: ${err}`);
+    }
+  }
   throw new Error("waitForCondition: timed out");
 }
 

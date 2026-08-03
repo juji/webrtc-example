@@ -196,10 +196,6 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
     const state = useMessagesStore.getState();
     const unread = (state.byPeer[peerUsername] ?? EMPTY_MESSAGES).filter((m) => !m.fromSelf && m.status === "sent");
     if (unread.length === 0) return;
-    console.log(
-      `[debug] read effect: ${unread.length} unread, dc=${dcRef.current?.readyState ?? "none"}, ` +
-        `serverIds=${unread.map((m) => m.serverId ?? "none").join(",")}`,
-    );
     // The read receipt must not be gated on the local unread-count write below:
     // clearUnread awaits the OPFS/SQLite connect, and if that is slow in a given
     // session the server-side read (and its row cleanup) would silently never

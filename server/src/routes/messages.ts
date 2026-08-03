@@ -85,7 +85,6 @@ messagesRoute.post('/:id/ack', async (c) => {
     .set({ recipientAckedAt: new Date() })
     .where(eq(messagesTable.id, id))
     .returning()
-  console.log(`[debug] POST /${id}/ack acked by ${c.var.userId}`)
 
   const [fromUser, toUser] = await Promise.all([
     db.select().from(users).where(eq(users.id, row.fromUserId)).then(([u]) => u),
@@ -116,7 +115,6 @@ messagesRoute.post('/:id/read', async (c) => {
     .set({ recipientReadAt: new Date() })
     .where(eq(messagesTable.id, id))
     .returning()
-  console.log(`[debug] POST /${id}/read by ${c.var.userId}`)
 
   const [fromUser, toUser] = await Promise.all([
     db.select().from(users).where(eq(users.id, row.fromUserId)).then(([u]) => u),

@@ -12,12 +12,12 @@ self.addEventListener("message", (event) => {
   }
 });
 
-// Reads the username directly out of the same IndexedDB row
+// Reads the logged-in user object directly out of the same IndexedDB row
 // client/lib/session-store.ts's zustand persist middleware writes to
 // (idb-keyval's default "keyval-store" DB / "keyval" store) — session data
 // lives here instead of localStorage specifically so the SW can read it
 // without needing the page to forward it via postMessage.
-function getLoggedInUsername() {
+function getSessionUser() {
   return new Promise((resolve) => {
     const req = indexedDB.open("keyval-store");
     req.onerror = () => resolve(null);
@@ -36,13 +36,54 @@ function getLoggedInUsername() {
       getReq.onsuccess = () => {
         db.close();
         try {
-          resolve(JSON.parse(getReq.result)?.state?.user?.username ?? null);
+          resolve(JSON.parse(getReq.result)?.state?.user ?? null);
         } catch {
           resolve(null);
         }
       };
     };
   });
+}
+
+function getLoggedInUsername() {
+  return getSessionUser().then((user) => user?.username ?? null);
+}
+
+// Shared by getNotificationSoundSetting/getFocusState below — both are a
+// single-key read against the same "keyval-store"/"keyval" store.
+function readKeyvalKey(key) {
+  return new Promise((resolve) => {
+    const req = indexedDB.open("keyval-store");
+    req.onerror = () => resolve(undefined);
+    req.onsuccess = () => {
+      const db = req.result;
+      const getReq = db.transaction("keyval", "readonly").objectStore("keyval").get(key);
+      getReq.onerror = () => {
+        db.close();
+        resolve(undefined);
+      };
+      getReq.onsuccess = () => {
+        db.close();
+        resolve(getReq.result);
+      };
+    };
+  });
+}
+
+// Mirrors client/lib/settings-mirror.ts's write (see plans/notification-sound
+// Phase 0/1) — sw.js can't import that module (static file, not part of the
+// Next bundle), so it re-reads the same row directly.
+function getNotificationSoundSetting() {
+  return getSessionUser().then((user) => (user ? readKeyvalKey(`webrtc-settings-${user.id}`).then((v) => v?.notificationSound ?? null) : null));
+}
+
+// Mirrors client/lib/settings-mirror.ts's mirrorFocusToIndexedDb — the page
+// writes its live document.visibilityState/hasFocus() here on every change,
+// since the SW has no way to read that itself. Defaults to "focused" (i.e.
+// don't silence) when unknown, so a stale/missing key never wrongly mutes a
+// push under "unfocused" mode.
+function getFocusState() {
+  return getSessionUser().then((user) => (user ? readKeyvalKey(`webrtc-focus-${user.id}`).then((v) => v ?? true) : true));
 }
 
 self.addEventListener("install", () => {
@@ -60,22 +101,34 @@ self.addEventListener("fetch", () => {
 self.addEventListener("push", (event) => {
   const data = event.data ? event.data.json() : { title: "Primssg", body: "" };
   event.waitUntil(
-    Promise.all([
-      self.registration.showNotification(data.title, {
-        body: data.body,
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        data: { url: data.url ?? "/", payload: data.data },
-      }),
-      // Broadcast the structured payload to any already-open tab right away —
-      // e.g. a contact-accepted push needs the receiving client to re-verify
-      // and persist the contact, not just wait for a notification click.
-      data.data
-        ? self.clients
-            .matchAll({ type: "window", includeUncontrolled: true })
-            .then((clients) => clients.forEach((c) => c.postMessage({ type: "push-data", data: data.data })))
-        : Promise.resolve(),
-    ]),
+    (async () => {
+      // "unfocused" is resolved via the focus mirror the page keeps updated
+      // (message-status-listener.tsx) — a focused/visible tab already plays
+      // its own foreground sound (client/lib/notification-sound.ts) and this
+      // stays silent to avoid doubling up; an unfocused-or-closed tab gets
+      // silenced here exactly like "never" would be.
+      const mode = await getNotificationSoundSetting();
+      const focused = await getFocusState();
+      const silent = mode === "never" || (mode === "unfocused" && focused);
+
+      return Promise.all([
+        self.registration.showNotification(data.title, {
+          body: data.body,
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          data: { url: data.url ?? "/", payload: data.data },
+          silent,
+        }),
+        // Broadcast the structured payload to any already-open tab right away —
+        // e.g. a contact-accepted push needs the receiving client to re-verify
+        // and persist the contact, not just wait for a notification click.
+        data.data
+          ? self.clients
+              .matchAll({ type: "window", includeUncontrolled: true })
+              .then((clients) => clients.forEach((c) => c.postMessage({ type: "push-data", data: data.data })))
+          : Promise.resolve(),
+      ]);
+    })(),
   );
 });
 

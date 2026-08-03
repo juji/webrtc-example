@@ -1,5 +1,5 @@
 import { PrimssgDB } from "./primssg-db";
-import type { Contact, Conversation, ConvoMessage, KeyBundle, LastMessage } from "./types";
+import type { Contact, Conversation, ConvoMessage, KeyBundle, LastMessage, Settings } from "./types";
 import type { DebugQueryResult, WorkerRequest, WorkerResponse } from "./worker-protocol";
 
 const LOCK_NAME = "primssg-db";
@@ -157,6 +157,16 @@ export class PrimssgDBWasm extends PrimssgDB {
 
   getFileBlob(key: string): Promise<Blob | undefined> {
     return this.call("getFileBlob", [key]);
+  }
+
+  // settings
+
+  getOrCreateSettings(id: string): Promise<Settings> {
+    return this.call("getOrCreateSettings", [id]);
+  }
+
+  updateSettings(id: string, settings: Settings): Promise<void> {
+    return this.call("updateSettings", [id, settings]);
   }
 
   // Dev-only raw-SQL escape hatch for /dev/sqlite. Not on PrimssgDB — only

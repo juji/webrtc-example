@@ -4,7 +4,9 @@ import { useEffect } from "react";
 import { ackMessage, deleteMessage } from "@/lib/api";
 import { incrementUnread } from "@/lib/chats";
 import { useMessagesStore } from "@/lib/messages-store";
+import { playNotificationSound } from "@/lib/notification-sound";
 import { useSessionStore } from "@/lib/session-store";
+import { mirrorFocusToIndexedDb } from "@/lib/settings-mirror";
 import { useSignalingStore } from "@/lib/signaling-store";
 
 // Root-level (not per-chat-page) subscriber for message-status pushes, so a
@@ -16,6 +18,20 @@ export function MessageStatusListener() {
   const user = useSessionStore((s) => s.user);
   const addMessage = useMessagesStore((s) => s.addMessage);
   const updateStatus = useMessagesStore((s) => s.updateStatus);
+
+  useEffect(() => {
+    if (!user) return;
+    const reportFocus = () => mirrorFocusToIndexedDb(user.id, document.visibilityState === "visible" && document.hasFocus());
+    reportFocus();
+    document.addEventListener("visibilitychange", reportFocus);
+    window.addEventListener("focus", reportFocus);
+    window.addEventListener("blur", reportFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", reportFocus);
+      window.removeEventListener("focus", reportFocus);
+      window.removeEventListener("blur", reportFocus);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -38,6 +54,7 @@ export function MessageStatusListener() {
           });
         });
         ackMessage(row.id);
+        playNotificationSound(user.id);
       } else if (message.type === "message-acked") {
         // Delivery confirmed — the row stays server-side until the recipient
         // actually reads it (message-read below), so a real read receipt is

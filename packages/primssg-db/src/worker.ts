@@ -1,7 +1,9 @@
 import sqlite3InitModule, { type Database } from "@sqlite.org/sqlite-wasm";
 import { SCHEMA_SQL } from "./schema";
-import type { Contact, Conversation, ConvoMessage, KeyBundle, LastMessage } from "./types";
+import type { Contact, Conversation, ConvoMessage, KeyBundle, LastMessage, Settings } from "./types";
 import type { DebugQueryResult, WorkerRequest, WorkerResponse } from "./worker-protocol";
+
+const DEFAULT_SETTINGS: Settings = { notificationSound: "unfocused", notificationSoundFile: "universfield-new-notification-012-363675.mp3" };
 
 const DB_FILENAME = "/primssg.sqlite3";
 
@@ -274,6 +276,33 @@ class PrimssgDBWasmEngine {
     } catch {
       return undefined;
     }
+  }
+
+  // settings
+
+  getOrCreateSettings(id: string): Settings {
+    const db = this.requireDb();
+    const rows = db.exec({
+      sql: "SELECT settings FROM settings WHERE id = ?",
+      bind: [id],
+      rowMode: "object",
+      returnValue: "resultRows",
+    }) as unknown as { settings: string }[];
+    if (rows[0]) return JSON.parse(rows[0].settings);
+
+    db.exec({
+      sql: "INSERT INTO settings (id, settings) VALUES (?, ?)",
+      bind: [id, JSON.stringify(DEFAULT_SETTINGS)],
+    });
+    return DEFAULT_SETTINGS;
+  }
+
+  updateSettings(id: string, settings: Settings): void {
+    this.requireDb().exec({
+      sql: `INSERT INTO settings (id, settings) VALUES (?, ?)
+            ON CONFLICT(id) DO UPDATE SET settings = excluded.settings`,
+      bind: [id, JSON.stringify(settings)],
+    });
   }
 
   // Dev-only raw-SQL escape hatch for /dev/sqlite — see worker-protocol.ts.

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, LogOut, Menu, MessageCircle, QrCode, Users } from "lucide-react";
+import { Bell, LogOut, Menu, MessageCircle, QrCode, Settings, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { ChatPane } from "@/components/chat-pane";
@@ -8,6 +8,7 @@ import { ContactsPopup } from "@/components/contacts-popup";
 import { Popup } from "@/components/popup";
 import { QrCodePopup } from "@/components/qr-code-popup";
 import { RequestsPopup } from "@/components/requests-popup";
+import { SettingsPopup } from "@/components/settings-popup";
 import { fetchContactRequests, logout as logoutSession } from "@/lib/api";
 import type { Contact } from "@/lib/contacts";
 import { getContact } from "@/lib/contacts";
@@ -59,6 +60,7 @@ export default function MockupPage() {
   const [showQr, setShowQr] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [highlightNotificationId, setHighlightNotificationId] = useState<string | null>(null);
   const [needsNotificationPrompt, setNeedsNotificationPrompt] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
@@ -221,6 +223,16 @@ export default function MockupPage() {
                   <button
                     onClick={() => {
                       setMenuOpen(false);
+                      setShowSettings(true);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
                       setConfirmingLogout(true);
                     }}
                     className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
@@ -329,6 +341,7 @@ export default function MockupPage() {
         user={user}
         onSelectContact={handleSelectContact}
       />
+      <SettingsPopup open={showSettings} onClose={() => setShowSettings(false)} user={user} />
     </div>
   );
 }

@@ -47,4 +47,9 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS messages_thread ON messages (ownerId, threadId);
+
+CREATE TABLE IF NOT EXISTS settings (
+  id TEXT PRIMARY KEY,
+  settings TEXT NOT NULL
+);
 `;

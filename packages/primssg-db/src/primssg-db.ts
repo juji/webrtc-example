@@ -1,4 +1,4 @@
-import type { Contact, Conversation, ConvoMessage, KeyBundle, LastMessage } from "./types";
+import type { Contact, Conversation, ConvoMessage, KeyBundle, LastMessage, Settings } from "./types";
 
 export abstract class PrimssgDB {
   abstract connect(): Promise<void>;
@@ -29,4 +29,8 @@ export abstract class PrimssgDB {
   // caller mint a fresh blob: URL on the next session instead of a dead one.
   abstract storeFileBlob(key: string, blob: Blob): Promise<void>;
   abstract getFileBlob(key: string): Promise<Blob | undefined>;
+
+  // settings
+  abstract getOrCreateSettings(id: string): Promise<Settings>;
+  abstract updateSettings(id: string, settings: Settings): Promise<void>;
 }

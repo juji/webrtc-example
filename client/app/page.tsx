@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { loginOrRegister } from "@/lib/api";
+import { getOrCreateSettings } from "@/lib/settings";
+import { mirrorSettingsToIndexedDb } from "@/lib/settings-mirror";
 import { useSessionStore } from "@/lib/session-store";
 
 export default function Home() {
@@ -27,6 +29,8 @@ export default function Home() {
     try {
       const user = await loginOrRegister(username);
       setUser(user);
+      const settings = await getOrCreateSettings(user.id);
+      await mirrorSettingsToIndexedDb(user.id, settings);
       router.push("/chat");
     } catch (err) {
       setError(err instanceof Error ? err.message : "something went wrong");

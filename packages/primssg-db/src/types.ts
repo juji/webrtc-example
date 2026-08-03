@@ -36,3 +36,14 @@ export type ConvoMessage = {
   sentAt: string | null;
   deliveredAt: string | null;
 };
+
+export type NotificationSoundMode = "always" | "unfocused" | "never";
+
+// One row per user id (not ownerId — this table has exactly one row per
+// account, not many, so the user id is the primary key directly). settings
+// is stored as JSON text in SQLite, parsed to this shape on read — extending
+// this later is adding a field here + a default, not a schema migration.
+export type Settings = {
+  notificationSound: NotificationSoundMode;
+  notificationSoundFile: string; // filename under client/public/, e.g. "universfield-new-notification-012-363675.mp3"
+};

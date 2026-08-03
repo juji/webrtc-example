@@ -47,7 +47,10 @@ jobs:
       - name: Wait for servers
         run: |
           for i in $(seq 1 60); do
-            curl -sf http://localhost:4000/users?q=&exclude= > /dev/null && curl -sf http://localhost:3000 > /dev/null && break
+            # GET /users/:id requires a session (401 unauthenticated), but only
+            # once the server is actually listening — reliably distinguishes
+            # "up" from "not up yet" without depending on any seeded data.
+            curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/users/00000000-0000-0000-0000-000000000000 | grep -q 401 && curl -sf http://localhost:3000 > /dev/null && break
             sleep 1
           done
 

@@ -310,10 +310,22 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
       // credentials so it renegotiates a real transport instead of reusing dead
       // candidates). Used both for the initial handshake and to recover when the
       // peer reconnects without this side's own pc ever tearing down (below).
+      // `pc.signalingState` doesn't leave "stable" until setLocalDescription
+      // actually resolves, so a `peer-online` broadcast arriving while the
+      // initial offer's createOffer()/setLocalDescription() is still in flight
+      // sees a pc that looks stable and idle — offering again here interleaves
+      // two createDataChannel/createOffer sequences on the same pc, producing
+      // mismatched m-line order. `offering` guards the whole async span, not
+      // just the signalingState check.
+      let offering = false;
       function offer(iceRestart = false) {
+        if (offering) return;
+        offering = true;
         pc.createOffer({ iceRestart }).then(async (sdp) => {
           await pc.setLocalDescription(sdp);
           send({ type: "offer", sdp, to: peerId });
+        }).finally(() => {
+          offering = false;
         });
       }
 
@@ -323,7 +335,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
           // as the initial handshake. A pc that's still "stable" here means it
           // never tore down (dc.onclose didn't fire) but its peer just came back
           // with a brand-new pc that has nothing to answer unless we re-offer.
-          if (message.from === peerId && isInitiator(selfId, peerId) && pc.signalingState === "stable") {
+          if (message.from === peerId && isInitiator(selfId, peerId) && pc.signalingState === "stable" && !offering) {
             // Renegotiating the existing pc does not revive the old data channel —
             // once a channel's onclose has fired its readyState is permanently
             // "closed", and the peer's pc.ondatachannel only ever fires once per

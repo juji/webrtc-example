@@ -2,8 +2,10 @@ import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
 import { db } from '../db'
 import { users } from '../db/schema'
+import { requireSession, type AuthedVariables } from '../session'
 
-export const usersRoute = new Hono()
+export const usersRoute = new Hono<{ Variables: AuthedVariables }>()
+usersRoute.use('*', requireSession())
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 

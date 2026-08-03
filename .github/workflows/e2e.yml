@@ -70,6 +70,18 @@ jobs:
             sleep 1
           done
 
+      # Next.js dev mode compiles each route on demand, the first time it's
+      # requested — /chat was never hit before the e2e tests' first real
+      # login, so that on-demand compile (plus the Fast Refresh cycle it
+      # triggers) landed right in the middle of the post-login navigation,
+      # slow enough in CI that the navigation never actually completed even
+      # though the underlying RSC fetch eventually returned 200. Warming both
+      # routes up-front means the real test run never hits a cold compile.
+      - name: Warm up Next.js routes
+        run: |
+          curl -sf http://localhost:3000/ > /dev/null
+          curl -sf http://localhost:3000/chat > /dev/null
+
       - name: Run e2e tests
         run: bun run test:e2e
         env:

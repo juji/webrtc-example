@@ -7,7 +7,10 @@ import type { MessageRow } from "./messages-store";
 export type SignalMessage =
   | { type: "offer"; sdp: RTCSessionDescriptionInit; to: string; from?: string }
   | { type: "answer"; sdp: RTCSessionDescriptionInit; to: string; from?: string }
-  | { type: "ice-candidate"; candidate: RTCIceCandidateInit; to: string; from?: string };
+  | { type: "ice-candidate"; candidate: RTCIceCandidateInit; to: string; from?: string }
+  // Server-originated only (no `to` — it's a broadcast the server itself sends
+  // on a user's WS open, never something a client sends via send()).
+  | { type: "peer-online"; from: string };
 
 // Delivery-status pushes (Phase 2's notifyUser), distinct from WebRTC signaling above
 // but carried over the same one WebSocket — see message-status-listener.tsx.

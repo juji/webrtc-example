@@ -66,6 +66,17 @@ signaling.get(
 
         peers.set(userId, ws)
 
+        // Whoever was mid-chat with this user has a pc that never tore down (no
+        // dc.onclose fired if the peer just navigated away and back rather than
+        // losing network) — it looks locally healthy but its transport is now
+        // talking to nobody. Nothing else tells that side to renegotiate, so
+        // broadcast to every other connected peer: the initiator-side client
+        // filters this to the one it's actually chatting with and re-offers.
+        for (const otherId of peers.keys()) {
+          if (otherId === userId) continue
+          notifyUser(otherId, { type: 'peer-online', from: userId })
+        }
+
         const queued = pending.get(userId)
         if (queued) {
           pending.delete(userId)

@@ -306,16 +306,50 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
         pc.ondatachannel = (event) => setupDataChannel(event.channel);
       }
 
+      // Sends a fresh offer on an already-`stable` pc (iceRestart forces new ICE
+      // credentials so it renegotiates a real transport instead of reusing dead
+      // candidates). Used both for the initial handshake and to recover when the
+      // peer reconnects without this side's own pc ever tearing down (below).
+      function offer(iceRestart = false) {
+        pc.createOffer({ iceRestart }).then(async (sdp) => {
+          await pc.setLocalDescription(sdp);
+          send({ type: "offer", sdp, to: peerId });
+        });
+      }
+
       unsubscribe = useSignalingStore.getState().subscribe(async (message) => {
+        if (message.type === "peer-online") {
+          // Only the initiator re-offers — the answerer just waits for it, same
+          // as the initial handshake. A pc that's still "stable" here means it
+          // never tore down (dc.onclose didn't fire) but its peer just came back
+          // with a brand-new pc that has nothing to answer unless we re-offer.
+          if (message.from === peerId && isInitiator(selfId, peerId) && pc.signalingState === "stable") {
+            // Renegotiating the existing pc does not revive the old data channel —
+            // once a channel's onclose has fired its readyState is permanently
+            // "closed", and the peer's pc.ondatachannel only ever fires once per
+            // channel. A fresh channel is required for the reconnect to actually
+            // produce a new dc.onopen on either side.
+            setupDataChannel(pc.createDataChannel("chat"));
+            offer(true);
+          }
+          return;
+        }
         if (message.type !== "offer" && message.type !== "answer" && message.type !== "ice-candidate") return;
         if (message.from !== peerId) return;
 
         if (message.type === "offer") {
+          // Stale/duplicate offer replayed from signaling-store's recent-message
+          // buffer, or a second offer arriving after this connection already
+          // negotiated — applying it now would throw (wrong signalingState).
+          if (pc.signalingState !== "stable") return;
           await pc.setRemoteDescription(new RTCSessionDescription(message.sdp));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           send({ type: "answer", sdp: answer, to: peerId });
         } else if (message.type === "answer") {
+          // No matching offer in flight for this connection — same stale-replay
+          // case as above, just for the other half of the handshake.
+          if (pc.signalingState !== "have-local-offer") return;
           await pc.setRemoteDescription(new RTCSessionDescription(message.sdp));
         } else if (message.type === "ice-candidate") {
           await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
@@ -323,10 +357,7 @@ export function useWebRtcChat(selfId: string, selfUsername: string, peerId: stri
       });
 
       if (isInitiator(selfId, peerId)) {
-        pc.createOffer().then(async (offer) => {
-          await pc.setLocalDescription(offer);
-          send({ type: "offer", sdp: offer, to: peerId });
-        });
+        offer();
       }
     });
 

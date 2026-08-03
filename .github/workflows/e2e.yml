@@ -27,6 +27,22 @@ jobs:
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
+      # server/src/session.ts and server/src/push.ts both throw at
+      # import/request time if these are unset (JWT signing, VAPID push) —
+      # the server crashes on boot without them. Throwaway values, regenerated
+      # every run: CI never needs a stable JWT/push identity across runs.
+      - name: Generate JWT_SECRET and VAPID keys
+        run: |
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          # bunx always prints its own "Resolving dependencies..." resolution
+          # noise to stdout before the command's real output, even when the
+          # package is already installed — grep out everything but the one
+          # JSON line the command itself produces.
+          bunx web-push generate-vapid-keys --json | grep '^{' > vapid.json
+          echo "VAPID_PUBLIC_KEY=$(node -pe 'JSON.parse(require("fs").readFileSync("vapid.json")).publicKey')" >> "$GITHUB_ENV"
+          echo "VAPID_PRIVATE_KEY=$(node -pe 'JSON.parse(require("fs").readFileSync("vapid.json")).privateKey')" >> "$GITHUB_ENV"
+          rm vapid.json
+
       - name: Start Postgres + RustFS
         run: docker compose up -d
 

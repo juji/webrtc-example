@@ -18,17 +18,11 @@ class PrimssgDBWasmEngine {
   private db: Database | null = null;
 
   async connect(): Promise<void> {
-    console.log("[primssg-db worker] connect: start");
     const sqlite3 = await sqlite3InitModule();
-    console.log("[primssg-db worker] connect: sqlite3InitModule done");
     const poolUtil = await sqlite3.installOpfsSAHPoolVfs({ name: "primssg-db" });
-    console.log("[primssg-db worker] connect: installOpfsSAHPoolVfs done");
     this.db = new poolUtil.OpfsSAHPoolDb(DB_FILENAME);
-    console.log("[primssg-db worker] connect: OpfsSAHPoolDb opened");
     this.db.exec(SCHEMA_SQL);
-    console.log("[primssg-db worker] connect: schema applied");
     this.migrate();
-    console.log("[primssg-db worker] connect: done");
   }
 
   // CREATE TABLE IF NOT EXISTS in SCHEMA_SQL only creates missing tables, not

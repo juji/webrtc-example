@@ -89,8 +89,6 @@ jobs:
 
       - name: Run e2e tests
         run: bun run test:e2e
-        env:
-          E2E_DEBUG: "1"
 
       - name: Docker logs on failure
         if: failure()
